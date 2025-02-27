@@ -46,7 +46,10 @@ def save_last_version(version):
 
 def send_discord_notification(version):
     print(f"Sending Discord notification for version: {version}")
-    message = {"content": f"New {github} release detected! Version: {version}"}
+    release_url = f"https://github.com/{github_repo}/releases/tag/{version}"
+    message = {
+        "content": f"New {github} release detected! Version: [{version}]({release_url})"
+    }
     try:
         response = requests.post(DISCORD_WEBHOOK_URL, json=message)
         response.raise_for_status()
