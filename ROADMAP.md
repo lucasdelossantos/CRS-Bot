@@ -7,7 +7,6 @@ This document outlines the planned improvements and future direction for CRS-Bot
 ### Documentation
 - [ ] Add example Discord notification screenshots
 - [ ] Create troubleshooting guide
-- [ ] Add architecture documentation
 
 ### Testing
 - [ ] Add unit test suite
@@ -61,5 +60,6 @@ This document outlines the planned improvements and future direction for CRS-Bot
 
 ### Documentation
 - [x] Add Quick Start guide to README
+- [x] Add architecture documentation
 
 _(Move items here as they are completed)_ 
