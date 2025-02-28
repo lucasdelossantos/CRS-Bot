@@ -1,0 +1,30 @@
+# GitHub Configuration
+github:
+  repository: "coreruleset/coreruleset"
+  name: "Core Rule Set"
+  # Version pattern to monitor (versions 4.x and beyond)
+  version_pattern: "^v?[4-9]\\.*"
+  api:
+    retries: 3
+    backoff_factor: 1
+    status_forcelist: [ 429, 500, 502, 503, 504 ]
+    headers:
+      accept: "application/vnd.github.v3+json"
+      user_agent: "CRS-Bot"
+
+# File Storage Configuration
+storage:
+  version_file: "last_version.json"
+
+# Logging Configuration
+logging:
+  level: "INFO"
+  format: "%(asctime)s - %(levelname)s - %(message)s"
+  file: "github_release_bot.log"
+
+# Discord Configuration
+discord:
+  notification:
+    color: 5814783 # Blue color
+    footer_text: "CRS-Bot"
+    webhook_url: "" # Optional: Discord webhook URL (can be overridden by environment variable)
