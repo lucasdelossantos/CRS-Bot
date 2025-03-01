@@ -1,3 +1,6 @@
+# Tests workflow
+# Runs tests across multiple Python versions and uploads coverage reports
+
 name: Tests
 
 on:
@@ -35,6 +38,6 @@ jobs:
     - name: Upload coverage report
       uses: actions/upload-artifact@v4
       with:
-        name: coverage-report
+        name: coverage-report-py${{ matrix.python-version }}
         path: htmlcov/
         if-no-files-found: error
