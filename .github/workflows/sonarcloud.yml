@@ -47,4 +47,8 @@ jobs:
         SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
       run: |
         sonar-scanner \
-          -Dsonar.host.url=https://sonarcloud.io
+          -Dsonar.host.url=https://sonarcloud.io \
+          -Dsonar.organization=lucasdelossantos \
+          -Dsonar.projectKey=lucasdelossantos_CRS-Bot \
+          -Dsonar.scm.provider=git \
+          -Dsonar.qualitygate.wait=true
