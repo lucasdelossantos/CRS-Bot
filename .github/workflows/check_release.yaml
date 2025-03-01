@@ -7,19 +7,21 @@ on:
 
 
 permissions:
-  contents: write # Grant write permissions to the contents scope
+  contents: write # For updating version file
+  actions: read # For running the workflow
 
 jobs:
   check_release:
     runs-on: ubuntu-latest
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v2
+      uses: actions/checkout@v4
 
     - name: Set up Python
-      uses: actions/setup-python@v2
+      uses: actions/setup-python@v5
       with:
-        python-version: 3.x
+        python-version: '3.12'
+        cache: 'pip' # Enable pip caching for faster installations
 
     - name: Install dependencies
       run: |
@@ -30,6 +32,7 @@ jobs:
       env:
         DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
       run: python github_release.py
+
     - name: Commit version file
       run: |
         git config --global user.name 'github-actions[bot]'

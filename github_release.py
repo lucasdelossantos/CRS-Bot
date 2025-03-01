@@ -9,17 +9,29 @@ from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 from datetime import datetime
 from typing import Dict, Any, Optional
+import sys
 
 def load_config() -> Dict[str, Any]:
-    """Load configuration from YAML file."""
-    config_path = os.path.join(os.path.dirname(__file__), 'config.yaml')
+    """
+    Load configuration from YAML file.
+    
+    The configuration file path is determined in the following order:
+    1. CONFIG_PATH environment variable
+    2. config.yaml in the same directory as the script
+    """
+    # Try environment variable first
+    config_path = os.getenv('CONFIG_PATH')
+    if not config_path:
+        # Fall back to default path
+        config_path = os.path.join(os.path.dirname(__file__), 'config.yaml')
+    
     try:
         with open(config_path, 'r') as f:
             return yaml.safe_load(f)
     except Exception as e:
-        raise RuntimeError(f"Failed to load configuration: {e}")
+        raise RuntimeError(f"Failed to load configuration from {config_path}: {e}")
 
-def get_discord_webhook_url() -> Optional[str]:
+def get_discord_webhook_url(config: Dict[str, Any] = None) -> Optional[str]:
     """
     Get Discord webhook URL from config or environment variables.
     Priority order:
@@ -40,10 +52,11 @@ def get_discord_webhook_url() -> Optional[str]:
         return webhook_url
     
     # Check config file
-    webhook_url = config.get('discord', {}).get('notification', {}).get('webhook_url')
-    if webhook_url:
-        logger.debug("Using Discord webhook URL from config file")
-        return webhook_url
+    if config:
+        webhook_url = config.get('discord', {}).get('notification', {}).get('webhook_url')
+        if webhook_url:
+            logger.debug("Using Discord webhook URL from config file")
+            return webhook_url
     
     return None
 
@@ -69,16 +82,13 @@ github = config['github']['name']
 # File to store the last checked version
 VERSION_FILE = config['storage']['version_file']
 
-# Discord Webhook URL
-DISCORD_WEBHOOK_URL = get_discord_webhook_url()
-if not DISCORD_WEBHOOK_URL:
-    logger.error("Discord webhook URL not found in environment variables or GitHub Actions secrets!")
-    raise ValueError("Discord webhook URL is required (set DISCORD_WEBHOOK_URL environment variable or configure in GitHub Actions)")
+# Discord Webhook URL - defer validation to function calls
+DISCORD_WEBHOOK_URL = get_discord_webhook_url(config)
 
 # Version pattern
 VERSION_PATTERN = re.compile(config['github']['version_pattern'])
 
-def create_github_session():
+def create_github_session(config: Dict[str, Any]) -> requests.Session:
     """
     Create and configure a GitHub API session with retry logic.
     Note: GitHub token is only needed/used in GitHub Actions environment,
@@ -106,11 +116,17 @@ def create_github_session():
     
     return session
 
-def get_latest_release():
+def get_latest_release(config: Dict[str, Any] = None) -> Optional[str]:
     """Fetch the latest release from GitHub."""
+    if not config:
+        config = load_config()
+    
     logger.info("Fetching latest release from GitHub...")
     try:
-        session = create_github_session()
+        session = create_github_session(config)
+        github_repo = config['github']['repository']
+        api_url = f"https://api.github.com/repos/{github_repo}/releases/latest"
+        
         response = session.get(api_url)
         response.raise_for_status()
         data = response.json()
@@ -124,12 +140,22 @@ def get_latest_release():
             logger.error(f"Response body: {response.text}")
         return None
 
-def load_last_version():
-    """Load the last recorded version from the version file."""
+def load_last_version(config: Dict[str, Any] = None) -> Optional[str]:
+    """
+    Load the last recorded version from the version file.
+    
+    Args:
+        config: Configuration dictionary containing storage settings
+    """
+    if not config:
+        config = load_config()
+    
+    version_file = config['storage']['version_file']
     logger.info("Loading last recorded version...")
-    if os.path.exists(VERSION_FILE):
+    
+    if os.path.exists(version_file):
         try:
-            with open(VERSION_FILE, "r") as file:
+            with open(version_file, "r") as file:
                 data = json.load(file)
                 last_version = data.get("last_version")
                 last_check = data.get("last_check")
@@ -141,63 +167,136 @@ def load_last_version():
     logger.info("No previous version recorded.")
     return None
 
-def save_last_version(version):
-    """Save the latest version to the version file."""
+def save_last_version(version: str, config: Dict[str, Any] = None) -> None:
+    """
+    Save the latest version to the version file.
+    
+    Args:
+        version: Version string to save
+        config: Configuration dictionary containing storage settings
+    """
+    if not config:
+        config = load_config()
+    
+    version_file = config['storage']['version_file']
     logger.info(f"Saving new version: {version}")
-    with open(VERSION_FILE, "w") as file:
+    
+    with open(version_file, "w") as file:
         json.dump({
             "last_version": version,
             "last_check": datetime.now().isoformat()
         }, file)
 
-def send_discord_notification(version):
-    """Send a notification to Discord about a new release."""
+def send_discord_notification(version: str, config: Dict[str, Any] = None) -> bool:
+    """
+    Send a notification to Discord about a new release.
+    
+    Args:
+        version: Version string to include in notification
+        config: Configuration dictionary containing Discord settings
+    
+    Returns:
+        bool: True if notification was sent successfully, False otherwise
+    
+    Raises:
+        ValueError: If webhook URL is missing or version is None
+        requests.RequestException: For network errors or invalid webhook URLs
+    """
+    if not config:
+        config = load_config()
+    
+    if version is None:
+        raise ValueError("Version string cannot be None")
+    
+    webhook_url = get_discord_webhook_url(config)
+    if not webhook_url:
+        raise ValueError("Discord webhook URL is required")
+    
     logger.info(f"Sending Discord notification for version: {version}")
+    github_repo = config['github']['repository']
+    github_name = config['github']['name']
     release_url = f"https://github.com/{github_repo}/releases/tag/{version}"
+    
+    # Get color with default value
+    try:
+        color = config['discord']['notification']['color']
+    except (KeyError, TypeError):
+        logger.info("Using default color (blue) for Discord notification")
+        color = 5814783  # Default blue color
+    
+    # Get footer text with default value
+    try:
+        footer_text = config['discord']['notification']['footer_text']
+    except (KeyError, TypeError):
+        logger.info("Using default footer text for Discord notification")
+        footer_text = "GitHub Release Bot"
+    
     message = {
         "embeds": [{
-            "title": f"New {github} Release!",
+            "title": f"New {github_name} Release!",
             "description": f"Version [{version}]({release_url}) has been released.",
-            "color": config['discord']['notification']['color'],
+            "color": color,
             "timestamp": datetime.now().isoformat(),
             "footer": {
-                "text": config['discord']['notification']['footer_text']
+                "text": footer_text
             }
         }]
     }
+    
     try:
-        response = requests.post(DISCORD_WEBHOOK_URL, json=message)
+        response = requests.post(webhook_url, json=message)
+        if response.status_code == 429:  # Rate limit
+            retry_after = int(response.headers.get('Retry-After', 1))
+            logger.warning(f"Rate limited by Discord. Retry after {retry_after} seconds")
+            return False
+        
+        # For other error status codes, raise the exception
         response.raise_for_status()
         logger.info("Discord notification sent successfully!")
-    except requests.RequestException as e:
-        logger.error(f"Error sending Discord message: {e}")
+        return True
+        
+    except requests.exceptions.HTTPError as e:
+        logger.error(f"HTTP error sending Discord message: {e}")
         response = getattr(e, 'response', None)
         if response:
             logger.error(f"Discord API response: {response.text}")
+        raise
+    except requests.exceptions.RequestException as e:
+        logger.error(f"Network error sending Discord message: {e}")
+        raise
 
-def check_for_new_release():
+def check_for_new_release(config: Dict[str, Any] = None) -> None:
     """Check for new releases and send notifications if found."""
+    if not config:
+        config = load_config()
+    
     logger.info("Starting new release check...")
-    latest_version = get_latest_release()
+    latest_version = get_latest_release(config)
     if not latest_version:
         logger.warning("No release found or error occurred.")
         return
     
-    if not VERSION_PATTERN.match(latest_version):
+    version_pattern = re.compile(config['github']['version_pattern'])
+    if not version_pattern.match(latest_version):
         logger.info(f"Version {latest_version} does not match the monitored pattern.")
         return
     
-    last_version = load_last_version()
+    last_version = load_last_version(config)
     
     if last_version != latest_version:
         logger.info(f"New release detected! Version: {latest_version}")
-        send_discord_notification(latest_version)
-        save_last_version(latest_version)
+        send_discord_notification(latest_version, config)
+        save_last_version(latest_version, config)
     else:
         logger.info("No new release detected.")
 
 if __name__ == "__main__":
     try:
+        # Validate webhook URL before proceeding
+        if not DISCORD_WEBHOOK_URL:
+            logger.error("No Discord webhook URL configured! Please set DISCORD_WEBHOOK_URL environment variable, configure in GitHub Actions, or set in config file.")
+            sys.exit(1)
+        
         check_for_new_release()
     except Exception as e:
         logger.exception("Unexpected error occurred:")

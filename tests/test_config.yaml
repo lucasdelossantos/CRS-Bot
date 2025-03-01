@@ -1,0 +1,26 @@
+# Test Configuration
+github:
+  repository: "test/test-repo"
+  name: "Test Repo"
+  version_pattern: "^v?[0-9]\\.*"
+  api:
+    retries: 2
+    backoff_factor: 0.1
+    status_forcelist: [ 429, 500, 502, 503, 504 ]
+    headers:
+      accept: "application/vnd.github.v3+json"
+      user_agent: "CRS-Bot-Test"
+
+storage:
+  version_file: "test_last_version.json"
+
+logging:
+  level: "DEBUG"
+  format: "%(asctime)s - %(levelname)s - %(message)s"
+  file: "test_bot.log"
+
+discord:
+  notification:
+    color: 5814783
+    footer_text: "CRS-Bot-Test"
+    webhook_url: "https://discord.com/api/webhooks/test"

@@ -9,9 +9,7 @@ This document outlines the planned improvements and future direction for CRS-Bot
 - [ ] Create troubleshooting guide
 
 ### Testing
-- [ ] Add unit test suite
 - [ ] Add integration tests
-- [ ] Add GitHub Actions for automated testing
 - [ ] Add test coverage reporting
 
 ### Development
@@ -61,5 +59,9 @@ This document outlines the planned improvements and future direction for CRS-Bot
 ### Documentation
 - [x] Add Quick Start guide to README
 - [x] Add architecture documentation
+
+### Testing
+- [x] Add unit test suite
+- [x] Add GitHub Actions for automated testing
 
 _(Move items here as they are completed)_ 
