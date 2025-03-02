@@ -1,0 +1,35 @@
+name: Update Dependencies
+on:
+  repository_dispatch:
+    types: [ dependency-update ]
+
+jobs:
+  update-deps:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Update requirements.txt
+      run: |
+        echo "requests>=2.31.0" > requirements.txt.tmp
+        tail -n +2 requirements.txt >> requirements.txt.tmp
+        mv requirements.txt.tmp requirements.txt
+
+    - name: Create Pull Request
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        git config --global user.name "github-actions[bot]"
+        git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
+        git checkout -b "deps/update-requests"
+        git add requirements.txt
+        git commit -m "build(deps): update requests to latest version"
+        git push origin deps/update-requests
+        gh pr create \
+          --title "build(deps): update requests to latest version" \
+          --body "Update requests package to latest version" \
+          --label "dependencies" \
+          --label "python" 

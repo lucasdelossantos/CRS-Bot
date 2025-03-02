@@ -10,17 +10,7 @@ jobs:
     permissions:
       contents: write
       pull-requests: write
-      packages: write
-      security-events: write
     steps:
-    - name: Checkout repository
-      uses: actions/checkout@v4
-
-    - name: Run Dependabot
-      uses: dependabot/fetch-metadata@v1.6.0
-      with:
-        github-token: ${{ secrets.GITHUB_TOKEN }}
-
     - name: Install GitHub CLI
       run: |
         type -p curl >/dev/null || (sudo apt update && sudo apt install curl -y)
@@ -30,7 +20,27 @@ jobs:
         && sudo apt update \
         && sudo apt install gh -y
 
-    - name: Enable auto-merge for Dependabot PRs
+    - name: Trigger Dependabot
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        gh api \
+          --method POST \
+          -H "Accept: application/vnd.github+json" \
+          /repos/${{ github.repository }}/dispatches \
+          -f event_type='dependency-update'
+
+    - name: Wait for a moment
+      run: sleep 30
+
+    - name: Check and merge Dependabot PRs
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
         gh auth login --with-token <<< "${{ secrets.GITHUB_TOKEN }}"
-        gh pr list --json number,author,headRefName --jq '.[] | select(.author.login == "dependabot[bot]") | .number' | xargs -I % gh pr merge % --auto --merge 
+        gh pr list --json number,author,headRefName --jq '.[] | select(.author.login == "dependabot[bot]") | .number' | while read pr; do
+          if [ ! -z "$pr" ]; then
+            echo "Enabling auto-merge for PR #$pr"
+            gh pr merge "$pr" --auto --merge || true
+          fi
+        done
