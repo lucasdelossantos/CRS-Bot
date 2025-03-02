@@ -63,9 +63,9 @@ RUN groupadd -r -g 10001 crsbot && \
         crsbot
 
 # Copy runtime files with root ownership and restrictive permissions
-COPY --chmod=550 github_release.py .
+COPY --chmod=554 github_release.py .
 COPY --chmod=440 config.yaml .
-COPY --chmod=550 setup.py .
+COPY --chmod=554 setup.py .
 COPY --chmod=440 requirements.txt .
 
 # Install dependencies and package
