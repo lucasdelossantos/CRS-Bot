@@ -38,6 +38,32 @@ CRS-Bot is a versatile tool that monitors GitHub releases and sends notification
    ```
 That's it! The bot will now check for new releases hourly and notify your Discord channel.
 
+### As a Docker Container
+```bash
+# Clone the repository
+git clone https://github.com/lucasdelossantos/CRS-Bot.git
+cd CRS-Bot
+
+# Create a .env file with your Discord webhook URL
+echo "DISCORD_WEBHOOK_URL=your-discord-webhook-url" > .env
+
+# Build and run with Docker Compose
+docker compose up -d
+```
+
+Or using Docker directly:
+```bash
+# Build the image
+docker build -t crs-bot .
+
+# Run the container
+docker run -d \
+  -e DISCORD_WEBHOOK_URL=your-discord-webhook-url \
+  -v $(pwd)/data:/app/data \
+  --name crs-bot \
+  crs-bot
+```
+
 ### As a Standalone Script
 ```bash
 # Clone and setup
@@ -93,6 +119,49 @@ To update the token:
 2. Generate new token
 3. Go to repository → Settings → Secrets and variables → Actions
 4. Update the `PAT_TOKEN` secret with the new token
+
+### Docker Setup
+
+The bot can be run as a Docker container, which provides several benefits:
+- Consistent environment across different platforms
+- Easy deployment and updates
+- Isolated dependencies
+- Built-in restart policies
+
+#### Docker Compose (Recommended)
+1. Clone the repository and navigate to it
+2. Create a `.env` file with your Discord webhook URL:
+   ```
+   DISCORD_WEBHOOK_URL=your-discord-webhook-url
+   ```
+3. Start the container:
+   ```bash
+   docker compose up -d
+   ```
+
+#### Manual Docker Setup
+1. Build the image:
+   ```bash
+   docker build -t crs-bot .
+   ```
+2. Run the container:
+   ```bash
+   docker run -d \
+     -e DISCORD_WEBHOOK_URL=your-discord-webhook-url \
+     -v $(pwd)/data:/app/data \
+     --name crs-bot \
+     crs-bot
+   ```
+
+#### Docker Volume
+The container uses a Docker volume to persist the `last_version.json` file:
+- In Docker Compose: Named volume `data`
+- In manual Docker: Bind mount to `./data`
+
+#### Environment Variables
+When running with Docker, configure the bot using environment variables:
+- `DISCORD_WEBHOOK_URL`: Your Discord webhook URL (required)
+- Additional variables can be added in the `.env` file or docker-compose.yml
 
 ### Installation
 

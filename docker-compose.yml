@@ -1,0 +1,15 @@
+version: '3.8'
+
+services:
+  crs-bot:
+    build: .
+    volumes:
+      - .:/app  # Mount current directory for development
+      - data:/app/data  # Persistent volume for last_version.json
+    environment:
+      - DISCORD_WEBHOOK_URL=${DISCORD_WEBHOOK_URL}  # From .env file or environment
+      - PYTHONUNBUFFERED=1
+    restart: unless-stopped
+
+volumes:
+  data:  # Named volume for persistent data 
