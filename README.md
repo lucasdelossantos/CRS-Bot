@@ -6,7 +6,7 @@
 [![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=lucasdelossantos_CRS-Bot&metric=alert_status)](https://sonarcloud.io/dashboard?id=lucasdelossantos_CRS-Bot)
 [![Security Rating](https://sonarcloud.io/api/project_badges/measure?project=lucasdelossantos_CRS-Bot&metric=security_rating)](https://sonarcloud.io/dashboard?id=lucasdelossantos_CRS-Bot)
 [![CodeQL](https://github.com/lucasdelossantos/CRS-Bot/workflows/CodeQL/badge.svg)](https://github.com/lucasdelossantos/CRS-Bot/security/code-scanning)
-[![Dependencies Status](https://img.shields.io/librariesio/github/lucasdelossantos/CRS-Bot)](https://libraries.io/github/lucasdelossantos/CRS-Bot)
+[![Dependency Status](https://img.shields.io/github/workflow/status/lucasdelossantos/CRS-Bot/Manual%20Dependabot?label=dependencies)](https://github.com/lucasdelossantos/CRS-Bot/actions/workflows/manual-dependabot.yml)
 
 CRS-Bot is a versatile tool that monitors GitHub releases and sends notifications to Discord. It can run both as a GitHub Action and as a standalone script, making it flexible for different use cases.
 
