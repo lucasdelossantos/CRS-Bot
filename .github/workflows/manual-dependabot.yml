@@ -52,6 +52,11 @@ jobs:
         git config --global user.name "github-actions[bot]"
         git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
+        # Create required labels if they don't exist
+        echo "Creating required labels if they don't exist..."
+        gh label create "python" --color "3572A5" --description "Python-related changes" || true
+        gh label create "dependencies" --color "0366D6" --description "Updates to dependencies" || true
+
         # Create a new branch for Python dependencies
         git checkout -b "deps/update-python"
 
@@ -109,6 +114,11 @@ jobs:
         # Create a new branch for workflow updates
         git checkout main
         git checkout -b "deps/update-actions"
+
+        # Create required labels if they don't exist
+        echo "Creating required labels if they don't exist..."
+        gh label create "github_actions" --color "2088FF" --description "Updates to GitHub Actions versions" || true
+        gh label create "dependencies" --color "0366D6" --description "Updates to dependencies" || true
 
         # Update workflow files
         echo "Updating workflow action versions..."
