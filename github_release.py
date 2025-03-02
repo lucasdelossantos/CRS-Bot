@@ -64,11 +64,15 @@ def get_discord_webhook_url(config: Dict[str, Any] = None) -> Optional[str]:
 config = load_config()
 
 # Configure logging
+log_file = config['logging']['file']
+if not os.path.exists(log_file):
+    raise RuntimeError(f"Log file {log_file} does not exist. Please create it with appropriate permissions.")
+
 logging.basicConfig(
     level=getattr(logging, config['logging']['level']),
     format=config['logging']['format'],
     handlers=[
-        logging.FileHandler(config['logging']['file']),
+        logging.FileHandler(log_file, mode='a', encoding='utf-8'),
         logging.StreamHandler()
     ]
 )
