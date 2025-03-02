@@ -250,7 +250,7 @@ jobs:
 
         # Start the container with explicit volume mount
         echo "Stopping any existing containers..."
-        docker compose down -v
+        docker compose down
 
         echo "Starting container with volume..."
         docker compose up -d
