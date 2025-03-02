@@ -242,9 +242,9 @@ jobs:
           chown 10001:10001 /target/last_version.json && \
           chmod 0600 /target/github_release_bot.log && \
           chmod 0600 /target/last_version.json && \
-          # Now set final directory permissions - allow group write
-          chmod 0570 /target && \
-          echo "After chmod 0570:" && \
+          # Now set final directory permissions - allow group read/write/execute
+          chmod 0575 /target && \
+          echo "After chmod 0575:" && \
           ls -la /target && \
           echo "Final volume contents and permissions:" && \
           ls -la /target && \
