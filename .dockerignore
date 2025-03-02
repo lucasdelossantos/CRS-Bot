@@ -1,6 +1,11 @@
-# Git
+# Version Control
 .git
 .gitignore
+.github
+.gitattributes
+.gitmodules
+.svn/
+.hg/
 
 # Python
 __pycache__/
@@ -23,20 +28,38 @@ wheels/
 *.egg-info/
 .installed.cfg
 *.egg
+.pytest_cache/
+.coverage
+.tox/
+.nox/
+.hypothesis/
 
 # Virtual Environment
 venv/
 ENV/
 env/
 .env
+.venv
+.python-version
+pyvenv.cfg
+pip-log.txt
+pip-delete-this-directory.txt
 
 # IDE
 .idea/
 .vscode/
 *.swp
 *.swo
+*.sublime-*
+.project
+.settings
+.classpath
+*.code-workspace
+.history/
+*.iml
+.vs/
 
-# Testing
+# Testing and Coverage
 .tox/
 .coverage
 .coverage.*
@@ -46,11 +69,123 @@ coverage.xml
 *.cover
 .hypothesis/
 .pytest_cache/
+htmlcov/
+.benchmarks/
 
-# Logs
+# Logs and Data
 *.log
 logs/
-
-# Local data
 data/
-last_version.json 
+last_version.json
+tmp/
+temp/
+*.dump
+*.sqlite
+*.sqlite3
+*.db
+*.bak
+*.old
+*.tmp
+
+# Docker
+Dockerfile
+docker-compose*.yml
+.dockerignore
+*.dockerfile
+docker/
+.docker/
+docker-compose.override.yml
+
+# Documentation
+docs/
+*.md
+LICENSE
+*.rst
+*.txt
+!requirements.txt
+*.pdf
+*.doc
+*.docx
+*.xls
+*.xlsx
+*.ppt
+*.pptx
+
+# Local development
+.DS_Store
+*.local
+*.env*
+*.secret*
+*.key
+*.pem
+*.cert
+*.crt
+*.p12
+*.pfx
+*.ca-bundle
+*.cer
+*.der
+*.csr
+*.pub
+id_*
+known_hosts
+authorized_keys
+*.gpg
+*.asc
+*.sig
+*.pgp
+.ssh/
+.gnupg/
+.aws/
+.kube/
+.azure/
+.gcloud/
+
+# Security and Configuration
+.htpasswd
+.htaccess
+*.config
+*.conf
+*.cfg
+*.ini
+*.json
+!package.json
+*.yaml
+!config.yaml
+*.yml
+!.github/workflows/*.yml
+*.toml
+!pyproject.toml
+*.properties
+*.env*
+*password*
+*secret*
+*credential*
+*token*
+*auth*
+*key*
+*cert*
+*private*
+*oauth*
+
+# System Files
+.directory
+.Trash-*
+$RECYCLE.BIN/
+System Volume Information/
+.fseventsd/
+.Spotlight-V100/
+.TemporaryItems/
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+ehthumbs_vista.db
+*.stackdump
+[Dd]esktop.ini
+
+# Package Managers
+node_modules/
+package-lock.json
+yarn.lock
+poetry.lock
+Pipfile.lock 
