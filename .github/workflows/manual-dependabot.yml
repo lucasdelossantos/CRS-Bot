@@ -44,7 +44,7 @@ jobs:
           echo "No existing dependency PRs found"
         fi
 
-    - name: Create fresh dependency PR
+    - name: Update Python Dependencies
       env:
         GH_TOKEN: ${{ secrets.PAT_TOKEN }}
       run: |
@@ -52,8 +52,8 @@ jobs:
         git config --global user.name "github-actions[bot]"
         git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
-        # Create a new branch for dependencies
-        git checkout -b "deps/update-all"
+        # Create a new branch for Python dependencies
+        git checkout -b "deps/update-python"
 
         # Update dependencies in requirements.txt
         if [ -f "requirements.txt" ]; then
@@ -76,24 +76,20 @@ jobs:
             
             # Commit and push changes
             git add requirements.txt
-            git commit -m "build(deps): update all dependencies to latest versions"
-            git push -f origin deps/update-all
+            git commit -m "build(deps): update python dependencies to latest versions"
+            git push -f origin deps/update-python
 
             # Create PR
-            echo "Creating PR..."
+            echo "Creating Python dependencies PR..."
             gh pr create \
-              --title "build(deps): update all dependencies" \
-              --body "Update all dependencies to their latest versions" \
+              --title "build(deps): update python dependencies" \
+              --body "Update Python package dependencies to their latest versions" \
               --label "dependencies" \
               --label "python" \
               --base main
 
-            # Wait for checks to complete
-            echo "Waiting for checks to complete..."
-            sleep 180
-
             # Enable auto-merge
-            pr_number=$(gh pr list --json number,headRefName --jq '.[] | select(.headRefName == "deps/update-all") | .number')
+            pr_number=$(gh pr list --json number,headRefName --jq '.[] | select(.headRefName == "deps/update-python") | .number')
             if [ ! -z "$pr_number" ]; then
               echo "Enabling auto-merge for PR #$pr_number"
               gh pr merge "$pr_number" --auto --merge || true
@@ -104,5 +100,57 @@ jobs:
           fi
         else
           echo "requirements.txt not found"
-          exit 1
+        fi
+
+    - name: Update Workflow Actions
+      env:
+        GH_TOKEN: ${{ secrets.PAT_TOKEN }}
+      run: |
+        # Create a new branch for workflow updates
+        git checkout main
+        git checkout -b "deps/update-actions"
+
+        # Update workflow files
+        echo "Updating workflow action versions..."
+
+        # Define the latest versions
+        checkout_version="v4"
+        setup_python_version="v5"
+
+        # Update all workflow files
+        for file in .github/workflows/*.yml .github/workflows/*.yaml; do
+          if [ -f "$file" ]; then
+            echo "Processing $file..."
+            # Update action versions
+            sed -i "s/actions\/checkout@v[0-9]/actions\/checkout@$checkout_version/g" "$file"
+            sed -i "s/actions\/setup-python@v[0-9]/actions\/setup-python@$setup_python_version/g" "$file"
+          fi
+        done
+
+        # Check if there are changes
+        if git diff --quiet; then
+          echo "No workflow updates needed"
+        else
+          echo "Changes detected in workflow files"
+          
+          # Commit and push changes
+          git add .github/workflows/
+          git commit -m "ci(deps): update GitHub Actions to latest versions"
+          git push -f origin deps/update-actions
+
+          # Create PR
+          echo "Creating workflow updates PR..."
+          gh pr create \
+            --title "ci(deps): update GitHub Actions" \
+            --body "Update GitHub Actions to their latest versions" \
+            --label "dependencies" \
+            --label "github_actions" \
+            --base main
+
+          # Enable auto-merge
+          pr_number=$(gh pr list --json number,headRefName --jq '.[] | select(.headRefName == "deps/update-actions") | .number')
+          if [ ! -z "$pr_number" ]; then
+            echo "Enabling auto-merge for PR #$pr_number"
+            gh pr merge "$pr_number" --auto --merge || true
+          fi
         fi
