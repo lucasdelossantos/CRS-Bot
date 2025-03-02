@@ -306,7 +306,22 @@ jobs:
           -v data:/app/data \
           --user crsbot \
           crs-bot:test \
-          -c "echo '[$(date -u)] Container startup - Log file initialized' > /app/data/github_release_bot.log"
+          -c "echo '[$(date -u)] Container startup - Log file initialized' >> /app/data/github_release_bot.log && \
+              ls -l /app/data/github_release_bot.log && \
+              stat /app/data/github_release_bot.log"
+
+        # Verify file permissions before starting container
+        docker run --rm \
+          --entrypoint sh \
+          -v data:/app/data \
+          crs-bot:test \
+          -c "
+            echo 'Verifying log file permissions...'
+            ls -l /app/data/github_release_bot.log
+            stat /app/data/github_release_bot.log
+            echo 'Testing file write access...'
+            echo '[$(date -u)] Pre-start permission test' >> /app/data/github_release_bot.log
+          "
 
         docker compose up -d
 
