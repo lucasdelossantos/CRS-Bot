@@ -44,8 +44,12 @@ jobs:
       env:
         GH_TOKEN: ${{ secrets.PAT_TOKEN }}
       run: |
+        # Configure git
+        git config --global user.name "github-actions[bot]"
+        git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
         # List all open PRs with dependency labels or from dependabot
-        gh pr list --json number,author,labels,title,headRefName,baseRefName,statusCheckRollup --jq '.[] | select((.author.login == "dependabot[bot]") or (.labels | map(.name) | contains(["dependencies"])))' | while read -r pr_json; do
+        gh pr list --json number,author,labels,title,headRefName,baseRefName --jq '.[] | select((.author.login == "dependabot[bot]") or (.labels | map(.name) | contains(["dependencies"])))' | while read -r pr_json; do
           pr_number=$(echo "$pr_json" | jq -r '.number')
           head_branch=$(echo "$pr_json" | jq -r '.headRefName')
           base_branch=$(echo "$pr_json" | jq -r '.baseRefName')
@@ -53,34 +57,48 @@ jobs:
           if [ ! -z "$pr_number" ]; then
             echo "Processing PR #$pr_number ($head_branch)"
             
-            # Update PR branch with latest base branch changes
-            echo "Updating PR with latest changes from $base_branch..."
-            git fetch origin "$base_branch:$base_branch"
-            git fetch origin "$head_branch:$head_branch" || true
-            git checkout "$head_branch"
-            git merge "$base_branch" || {
-              echo "Merge conflict detected, skipping PR #$pr_number"
-              continue
-            }
-            git push origin "$head_branch"
+            # Force fetch the latest state
+            git fetch --force origin "$base_branch:$base_branch"
+            git fetch --force origin "$head_branch:$head_branch" || true
             
-            # Wait a moment for checks to start
-            sleep 10
+            # Create a new temporary branch from base
+            temp_branch="temp-${head_branch}"
+            git checkout -B "$temp_branch" "origin/$base_branch"
             
-            # Check if there are any failed checks
-            failed_checks=$(echo "$pr_json" | jq -r '.statusCheckRollup[] | select(.conclusion == "failure" or .status == "in_progress") | .context' 2>/dev/null)
-            
-            if [ ! -z "$failed_checks" ]; then
-              echo "Found failed or in-progress checks for PR #$pr_number, re-running them..."
-              gh pr check-run-list "$pr_number" --json databaseId | jq -r '.[].databaseId' | while read -r run_id; do
-                gh api -X POST "/repos/${{ github.repository }}/check-runs/$run_id/rerequest" || true
+            # Cherry-pick the PR's changes
+            pr_commit=$(gh pr view "$pr_number" --json commits --jq '.commits[-1].oid')
+            if git cherry-pick "$pr_commit"; then
+              # Force push the updated branch
+              git push --force origin "HEAD:$head_branch"
+              
+              echo "Branch updated, waiting for checks to start..."
+              sleep 15
+              
+              # Re-run all check suites for the PR
+              echo "Re-running all checks for PR #$pr_number..."
+              gh api "/repos/${{ github.repository }}/pulls/$pr_number" --jq '.head.sha' | while read -r sha; do
+                gh api -X POST "/repos/${{ github.repository }}/check-runs" \
+                  -F "name=re-run-trigger" \
+                  -F "head_sha=$sha" \
+                  -F "status=completed" \
+                  -F "conclusion=success" || true
+                
+                # Trigger check suite re-run
+                gh api -X POST "/repos/${{ github.repository }}/check-suites" \
+                  -F "head_sha=$sha" || true
               done
               
               echo "Waiting for checks to complete..."
-              sleep 120  # Give checks more time to run
+              sleep 180  # Give checks more time to run
+              
+              echo "Enabling auto-merge for PR #$pr_number"
+              gh pr merge "$pr_number" --auto --merge || true
+            else
+              echo "Failed to apply changes for PR #$pr_number, skipping"
             fi
             
-            echo "Enabling auto-merge for PR #$pr_number"
-            gh pr merge "$pr_number" --auto --merge || true
+            # Clean up temporary branch
+            git checkout main
+            git branch -D "$temp_branch" || true
           fi
         done
