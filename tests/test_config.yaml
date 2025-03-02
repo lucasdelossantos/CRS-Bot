@@ -21,6 +21,6 @@ logging:
 
 discord:
   notification:
+    webhook_url: "https://discord.com/api/webhooks/test"
     color: 5814783
     footer_text: "CRS-Bot-Test"
-    webhook_url: "https://discord.com/api/webhooks/test"

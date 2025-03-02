@@ -67,11 +67,32 @@ jobs:
           exit 1
         fi
 
+        # Check data directory permissions
+        DATA_PERM=$(docker run --rm crs-bot:test ls -la /app/data)
+        if ! echo "$DATA_PERM" | grep -q "^drwxr-x---.*crsbot.*crsbot"; then
+          echo "Data directory has incorrect permissions"
+          echo "$DATA_PERM"
+          exit 1
+        fi
+
+        # Check for sensitive files
+        if docker run --rm crs-bot:test find /app -type f -name "*.key" -o -name "*.pem" -o -name "*.env" 2>/dev/null; then
+          echo "Found sensitive files in the container!"
+          exit 1
+        fi
+
+        # Check for setuid/setgid binaries
+        if docker run --rm crs-bot:test find / -perm /6000 -type f 2>/dev/null; then
+          echo "Found setuid/setgid binaries!"
+          exit 1
+        fi
+
     - name: Run tests in container
       run: |
         # Create test directories with proper permissions
         mkdir -p tests/data
         chmod 750 tests/data
+        chown 10001:10001 tests/data
 
         # Run tests with coverage
         docker run --rm \
@@ -92,6 +113,7 @@ jobs:
         DISCORD_WEBHOOK_URL=https://discord.com/api/webhooks/test
         PYTHONUNBUFFERED=1
         EOL
+        chmod 640 .env
 
         # Start container
         docker compose up -d

@@ -177,4 +177,4 @@ def test_version_file_permissions(test_version_file):
         save_last_version("v4.0.1", test_version_file)
     
     # Cleanup
-    os.chmod(test_version_file['storage']['version_file'], 0o666) 
+    os.chmod(test_version_file['storage']['version_file'], 0o640)  # rw-r----- 

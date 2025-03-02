@@ -32,8 +32,8 @@ def ensure_data_directory():
             f.write('{}')
     
     # Ensure proper permissions
-    os.chmod(data_dir, 0o755)  # rwxr-xr-x
-    os.chmod(log_file, 0o644)  # rw-r--r--
+    os.chmod(data_dir, 0o750)  # rwxr-x---
+    os.chmod(log_file, 0o640)  # rw-r-----
     os.chmod(version_file, 0o644)  # rw-r--r--
     
     # Run the test
