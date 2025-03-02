@@ -221,7 +221,7 @@ jobs:
         echo "Initializing volume with data..."
         docker run --rm \
           -v "$(pwd)/temp_data:/source:ro" \
-          -v "data:/target" \
+          -v "data:/app/data" \
           --user root \
           alpine sh -c "
             set -x
@@ -231,48 +231,48 @@ jobs:
             stat /source/github_release_bot.log
             stat /source/last_version.json
             echo 'Cleaning target...'
-            rm -rf /target/*
-            mkdir -p /target
+            rm -rf /app/data/*
+            mkdir -p /app/data
             echo 'Target directory created:'
-            ls -la /target
+            ls -la /app/data
             echo 'Copying files...'
-            cp -av /source/github_release_bot.log /target/
-            cp -av /source/last_version.json /target/
+            cp -av /source/github_release_bot.log /app/data/
+            cp -av /source/last_version.json /app/data/
             echo 'Target directory after copy:'
-            ls -la /target
+            ls -la /app/data
             echo 'Setting ownership and permissions...'
-            chown -R 0:10001 /target
+            chown -R 0:10001 /app/data
             echo 'Initial directory permissions:'
-            ls -la /target
-            chmod 0770 /target
+            ls -la /app/data
+            chmod 0770 /app/data
             echo 'After chmod 0770:'
-            ls -la /target
-            chown 10001:10001 /target/github_release_bot.log
-            chown 10001:10001 /target/last_version.json
-            chmod 0600 /target/github_release_bot.log
-            chmod 0600 /target/last_version.json
+            ls -la /app/data
+            chown 10001:10001 /app/data/github_release_bot.log
+            chown 10001:10001 /app/data/last_version.json
+            chmod 0600 /app/data/github_release_bot.log
+            chmod 0600 /app/data/last_version.json
             echo 'Final volume contents and permissions:'
-            ls -la /target
+            ls -la /app/data
             echo 'Log file details:'
-            stat /target/github_release_bot.log
+            stat /app/data/github_release_bot.log
             echo 'Version file details:'
-            stat /target/last_version.json
+            stat /app/data/last_version.json
           "
 
         echo "🔍 Examining volume state after initialization..."
         docker run --rm \
-          -v data:/debug \
+          -v data:/app/data \
           alpine sh -c "
             echo '=== Volume State After Init ==='
             echo 'Installing tree...'
             apk add --no-cache tree
             echo 'Full directory tree:'
-            tree -pug /debug
+            tree -pug /app/data
             echo 'Detailed permissions:'
-            ls -la /debug
-            ls -la /debug/*
+            ls -la /app/data
+            ls -la /app/data/*
             echo 'File details:'
-            stat /debug/*
+            stat /app/data/*
             echo 'Ownership and group info:'
             id
           "
@@ -398,13 +398,13 @@ jobs:
 
         echo "🔍 Final volume state:"
         docker run --rm \
-          -v data:/debug \
+          -v data:/app/data \
           alpine sh -c "
-            ls -la /debug
+            ls -la /app/data
             echo 'File contents:'
-            cat /debug/github_release_bot.log || echo 'Could not read log file'
+            cat /app/data/github_release_bot.log || echo 'Could not read log file'
             echo 'File details:'
-            stat /debug/github_release_bot.log
+            stat /app/data/github_release_bot.log
           "
 
         # Clean up temporary directory
