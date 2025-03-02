@@ -135,6 +135,15 @@ jobs:
         mkdir -p tests/pytest_cache
         sudo chown 10001:10001 tests/pytest_cache
         sudo chmod 700 tests/pytest_cache
+        # Create data directory and log file for tests
+        mkdir -p data
+        sudo chown 10001:10001 data
+        sudo chmod 700 data
+        touch data/github_release_bot.log
+        sudo chown 10001:10001 data/github_release_bot.log
+        sudo chmod 600 data/github_release_bot.log
+        echo "✅ Test directories and log file created with correct permissions"
+
         # Set permissions for source files
         sudo chown root:10001 github_release.py setup.py config.yaml
         sudo chmod 554 github_release.py setup.py
@@ -147,6 +156,7 @@ jobs:
           -v ${{ github.workspace }}/github_release.py:/app/github_release.py:ro \
           -v ${{ github.workspace }}/setup.py:/app/setup.py:ro \
           -v ${{ github.workspace }}/config.yaml:/app/config.yaml:ro \
+          -v ${{ github.workspace }}/data:/app/data:rw \
           -v ${{ github.workspace }}/tests/coverage:/coverage:rw \
           -v ${{ github.workspace }}/tests/pytest_cache:/app/.pytest_cache:rw \
           -e COVERAGE_FILE=/coverage/.coverage \
