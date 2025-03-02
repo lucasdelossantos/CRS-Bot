@@ -74,6 +74,26 @@ For more detailed setup options and configuration, see the [Setup](#setup) secti
 - A Discord Webhook URL
 - GitHub repository with appropriate permissions (for GitHub Actions)
 
+### Personal Access Token (PAT) Maintenance
+
+The repository uses a Personal Access Token (PAT) for creating dependency update pull requests. This token needs to be maintained:
+
+1. **Token Expiration**: The PAT is set to expire every 90 days for security
+2. **Required Permissions**:
+   - `repo` (full control of private repositories)
+   - `workflow` (to update workflow files)
+3. **Token Rotation Process**:
+   - GitHub will email you before the token expires
+   - Generate a new token with the same permissions
+   - Update the `PAT_TOKEN` secret in the repository
+   - Delete the old token
+
+To update the token:
+1. Go to GitHub → Settings → Developer settings → Personal access tokens → Tokens (classic)
+2. Generate new token
+3. Go to repository → Settings → Secrets and variables → Actions
+4. Update the `PAT_TOKEN` secret with the new token
+
 ### Installation
 
 1. Clone the repository:
