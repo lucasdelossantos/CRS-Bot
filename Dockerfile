@@ -64,11 +64,11 @@ RUN groupadd -r -g 10001 crsbot && \
         --no-log-init \
         crsbot
 
-# Copy only runtime files with correct ownership
-COPY --chown=crsbot:crsbot github_release.py .
-COPY --chown=crsbot:crsbot config.yaml .
-COPY --chown=crsbot:crsbot setup.py .
-COPY --chown=crsbot:crsbot requirements.txt .
+# Copy only runtime files with correct ownership and permissions
+COPY --chown=crsbot:crsbot --chmod=400 github_release.py .
+COPY --chown=crsbot:crsbot --chmod=400 config.yaml .
+COPY --chown=crsbot:crsbot --chmod=400 setup.py .
+COPY --chown=crsbot:crsbot --chmod=400 requirements.txt .
 
 # Install dependencies and package
 RUN pip install --no-cache-dir -r requirements.txt && \
