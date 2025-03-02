@@ -114,11 +114,28 @@ jobs:
               --label "python" \
               --base main
 
-            # Enable auto-merge
+            # Enable auto-merge and monitor checks
             pr_number=$(gh pr list --json number,headRefName --jq '.[] | select(.headRefName == "deps/update-python") | .number')
             if [ ! -z "$pr_number" ]; then
               echo "Enabling auto-merge for PR #$pr_number"
               gh pr merge "$pr_number" --auto --merge || true
+              
+              # Wait for checks and monitor status
+              echo "Waiting for checks to complete..."
+              for i in {1..30}; do
+                check_status=$(gh pr view "$pr_number" --json statusCheckRollup --jq '.statusCheckRollup[] | select(.name != null) | .conclusion')
+                if echo "$check_status" | grep -q "failure\|cancelled"; then
+                  # Checks failed - add label and comment
+                  gh pr edit "$pr_number" --add-label "checks-failed"
+                  gh pr comment "$pr_number" --body "⚠️ Checks have failed for this PR. Please review the failures and update accordingly."
+                  exit 1
+                elif echo "$check_status" | grep -q "success"; then
+                  echo "All checks passed successfully!"
+                  break
+                fi
+                echo "Checks still running... (attempt $i/30)"
+                sleep 10
+              done
             fi
           else
             echo "No changes needed in requirements.txt"
@@ -140,6 +157,7 @@ jobs:
         echo "Creating required labels if they don't exist..."
         gh label create "github_actions" --color "2088FF" --description "Updates to GitHub Actions versions" || true
         gh label create "dependencies" --color "0366D6" --description "Updates to dependencies" || true
+        gh label create "checks-failed" --color "d73a4a" --description "CI checks have failed" || true
 
         # Update workflow files
         echo "Updating workflow action versions..."
@@ -204,13 +222,28 @@ jobs:
             fi
           fi
 
-          # Enable auto-merge with error checking
+          # Enable auto-merge and monitor checks
           pr_number=$(gh pr list --json number,headRefName --jq '.[] | select(.headRefName == "deps/update-actions") | .number')
           if [ ! -z "$pr_number" ]; then
             echo "Enabling auto-merge for PR #$pr_number"
-            if ! gh pr merge "$pr_number" --auto --merge; then
-              echo "Failed to enable auto-merge for PR #$pr_number"
-            fi
+            gh pr merge "$pr_number" --auto --merge || true
+            
+            # Wait for checks and monitor status
+            echo "Waiting for checks to complete..."
+            for i in {1..30}; do
+              check_status=$(gh pr view "$pr_number" --json statusCheckRollup --jq '.statusCheckRollup[] | select(.name != null) | .conclusion')
+              if echo "$check_status" | grep -q "failure\|cancelled"; then
+                # Checks failed - add label and comment
+                gh pr edit "$pr_number" --add-label "checks-failed"
+                gh pr comment "$pr_number" --body "⚠️ Checks have failed for this PR. Please review the failures and update accordingly."
+                exit 1
+              elif echo "$check_status" | grep -q "success"; then
+                echo "All checks passed successfully!"
+                break
+              fi
+              echo "Checks still running... (attempt $i/30)"
+              sleep 10
+            done
           else
             echo "Could not find PR number for auto-merge"
           fi
