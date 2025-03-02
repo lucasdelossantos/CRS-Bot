@@ -249,15 +249,15 @@ jobs:
 
         # Verify volume contents and permissions after initialization
         echo "Verifying volume contents and permissions after initialization..."
-        docker run --rm -v data:/verify --user 10001 alpine sh -c 'set -x && \
+        docker run --rm -v data:/target --user 10001 alpine sh -c 'set -x && \
           echo "Testing file access..." && \
-          touch /verify/github_release_bot.log && \
-          echo "test" > /verify/github_release_bot.log && \
-          cat /verify/github_release_bot.log && \
+          touch /target/github_release_bot.log && \
+          echo "test" > /target/github_release_bot.log && \
+          cat /target/github_release_bot.log && \
           echo "File permissions:" && \
-          ls -lan /verify && \
-          stat /verify/github_release_bot.log && \
-          stat /verify/last_version.json'
+          ls -lan /target && \
+          stat /target/github_release_bot.log && \
+          stat /target/last_version.json'
 
         # Start the container with explicit volume mount
         echo "Stopping any existing containers..."
