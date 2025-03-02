@@ -42,8 +42,8 @@ jobs:
       env:
         GH_TOKEN: ${{ secrets.PAT_TOKEN }}
       run: |
-        # List PRs from our deps/update-requests branch
-        gh pr list --json number,headRefName --jq '.[] | select(.headRefName == "deps/update-requests") | .number' | while read pr; do
+        # List all open PRs with dependency labels or from dependabot
+        gh pr list --json number,author,labels,title --jq '.[] | select((.author.login == "dependabot[bot]") or (.labels | map(.name) | contains(["dependencies"]))) | .number' | while read pr; do
           if [ ! -z "$pr" ]; then
             echo "Enabling auto-merge for PR #$pr"
             gh pr merge "$pr" --auto --merge || true
