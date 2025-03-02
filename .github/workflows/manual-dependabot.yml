@@ -11,11 +11,14 @@ jobs:
       contents: write
       pull-requests: write
     steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
     - name: Trigger Dependabot
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
-        gh auth login --with-token <<< "${{ secrets.GITHUB_TOKEN }}"
         gh api \
           --method POST \
-          -H "Accept: application/vnd.github+json" \
-          -H "X-GitHub-Api-Version: 2022-11-28" \
-          /repos/${{ github.repository }}/dependabot/scans 
+          -H "Accept: application/vnd.github.v3+json" \
+          repos/${{ github.repository }}/dependabot/scans 
