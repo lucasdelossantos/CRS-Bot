@@ -172,17 +172,18 @@ jobs:
     - name: Test container startup and functionality
       run: |
         echo "📁 Creating data directory..."
-        sudo mkdir -p data
-        sudo chown root:10001 data
-        sudo chmod 550 data
+        # Create a temporary directory to initialize the volume
+        mkdir -p temp_data
+        sudo chown root:10001 temp_data
+        sudo chmod 550 temp_data
         # Create and set up log file
-        sudo touch data/github_release_bot.log
-        sudo chown 10001:10001 data/github_release_bot.log
-        sudo chmod 600 data/github_release_bot.log
+        sudo touch temp_data/github_release_bot.log
+        sudo chown 10001:10001 temp_data/github_release_bot.log
+        sudo chmod 600 temp_data/github_release_bot.log
         # Create and set up version file
-        echo '{}' | sudo tee data/last_version.json > /dev/null
-        sudo chown 10001:10001 data/last_version.json
-        sudo chmod 600 data/last_version.json
+        echo '{}' | sudo tee temp_data/last_version.json > /dev/null
+        sudo chown 10001:10001 temp_data/last_version.json
+        sudo chmod 600 temp_data/last_version.json
         echo "✅ Data directory created with correct permissions"
 
         echo "📝 Creating test environment file..."
@@ -194,7 +195,17 @@ jobs:
         echo "✅ Environment file created"
 
         echo "🚀 Starting container..."
+        # Initialize the named volume with our temporary directory
+        docker run --rm \
+          -v $(pwd)/temp_data:/data \
+          -v data:/data_init \
+          busybox cp -a /data/. /data_init/
+
+        # Start the container
         docker compose up -d
+
+        # Clean up temporary directory
+        sudo rm -rf temp_data
 
         echo "⏳ Waiting for container health check..."
         HEALTHY=0
