@@ -300,6 +300,14 @@ jobs:
           "
 
         echo "Starting container with volume..."
+        # Initialize log file with a header
+        docker run --rm \
+          --entrypoint sh \
+          -v data:/app/data \
+          --user crsbot \
+          crs-bot:test \
+          -c "echo '[$(date -u)] Container startup - Log file initialized' > /app/data/github_release_bot.log"
+
         docker compose up -d
 
     - name: Run Python file operations test
