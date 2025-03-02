@@ -33,11 +33,15 @@ jobs:
     - name: Wait for a moment
       run: sleep 30
 
-    - name: Check and merge Dependabot PRs
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Check and merge PRs
       env:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
-        gh pr list --json number,author,headRefName --jq '.[] | select(.author.login == "dependabot[bot]") | .number' | while read pr; do
+        # List PRs from our deps/update-requests branch
+        gh pr list --json number,headRefName --jq '.[] | select(.headRefName == "deps/update-requests") | .number' | while read pr; do
           if [ ! -z "$pr" ]; then
             echo "Enabling auto-merge for PR #$pr"
             gh pr merge "$pr" --auto --merge || true
