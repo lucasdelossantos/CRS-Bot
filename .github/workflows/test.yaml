@@ -54,8 +54,8 @@ jobs:
         bandit -r . -ll -ii -x tests/ -v
 
         echo "Checking for known vulnerabilities..."
-        # Check for known vulnerabilities in dependencies
-        safety check -v
+        # Check for known vulnerabilities in dependencies with full output
+        safety check --full-report
 
     - name: Run tests with coverage
       env:
