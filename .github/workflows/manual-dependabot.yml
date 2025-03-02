@@ -22,7 +22,7 @@ jobs:
 
     - name: Trigger Dependabot
       env:
-        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        GH_TOKEN: ${{ secrets.PAT_TOKEN }}
       run: |
         gh api \
           --method POST \
@@ -35,10 +35,12 @@ jobs:
 
     - name: Checkout repository
       uses: actions/checkout@v4
+      with:
+        token: ${{ secrets.PAT_TOKEN }}
 
     - name: Check and merge PRs
       env:
-        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        GH_TOKEN: ${{ secrets.PAT_TOKEN }}
       run: |
         # List PRs from our deps/update-requests branch
         gh pr list --json number,headRefName --jq '.[] | select(.headRefName == "deps/update-requests") | .number' | while read pr; do
