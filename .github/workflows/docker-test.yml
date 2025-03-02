@@ -200,7 +200,13 @@ jobs:
           -v $(pwd)/temp_data:/source \
           -v data:/target \
           --user root \
-          alpine sh -c 'cp -a /source/. /target/ && chown -R root:10001 /target && chmod 550 /target && chown 10001:10001 /target/*.{log,json} && chmod 600 /target/*.{log,json}'
+          alpine sh -c 'cp -a /source/. /target/ && \
+          chown -R root:10001 /target && \
+          chmod 550 /target && \
+          chown 10001:10001 /target/github_release_bot.log && \
+          chown 10001:10001 /target/last_version.json && \
+          chmod 600 /target/github_release_bot.log && \
+          chmod 600 /target/last_version.json'
 
         # Start the container
         docker compose up -d
