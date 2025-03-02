@@ -40,48 +40,106 @@ jobs:
         cache-from: type=gha
         cache-to: type=gha,mode=max
 
+    - name: Verify image security
+      run: |
+        # Check image runs as non-root
+        USER_INFO=$(docker run --rm crs-bot:test id)
+        if echo "$USER_INFO" | grep -q "uid=0"; then
+          echo "Container is running as root!"
+          exit 1
+        fi
+
+        # Check Python security settings
+        ENV_CHECK=$(docker run --rm crs-bot:test env)
+        if ! echo "$ENV_CHECK" | grep -q "PYTHONUNBUFFERED=1"; then
+          echo "Missing PYTHONUNBUFFERED environment variable"
+          exit 1
+        fi
+        if ! echo "$ENV_CHECK" | grep -q "PYTHON_HASHSEED=random"; then
+          echo "Missing PYTHON_HASHSEED environment variable"
+          exit 1
+        fi
+
+        # Check file permissions
+        PERM_CHECK=$(docker run --rm crs-bot:test ls -la /app)
+        if echo "$PERM_CHECK" | grep -q "^.....w...."; then
+          echo "Application files are writable!"
+          exit 1
+        fi
+
     - name: Run tests in container
       run: |
-        # Create test directory with restricted permissions
+        # Create test directories with proper permissions
         mkdir -p tests/data
-        chmod 555 tests/data
+        chmod 750 tests/data
 
+        # Run tests with coverage
         docker run --rm \
-          -v ${{ github.workspace }}/tests:/app/tests \
+          -v ${{ github.workspace }}/tests:/app/tests:ro \
           --user crsbot \
           crs-bot:test \
-          pytest tests/
+          pytest tests/ --cov=. --cov-report=xml
 
-    - name: Test container startup
+    - name: Test container startup and functionality
       run: |
-        # Create dummy webhook URL for testing
-        echo "DISCORD_WEBHOOK_URL=https://discord.com/api/webhooks/test" > .env
-
         # Create data directory with proper permissions
         mkdir -p data
-        chmod 777 data
+        chmod 750 data
+        chown 10001:10001 data
+
+        # Create test environment file
+        cat > .env << EOL
+        DISCORD_WEBHOOK_URL=https://discord.com/api/webhooks/test
+        PYTHONUNBUFFERED=1
+        EOL
 
         # Start container
         docker compose up -d
 
         # Wait for container to be healthy
-        sleep 10
+        timeout 30s bash -c 'while ! docker compose ps | grep -q "healthy"; do sleep 1; done'
 
-        # Check container is running
-        CONTAINER_STATUS=$(docker compose ps -q crs-bot | xargs docker inspect -f '{{.State.Status}}')
-        if [ "$CONTAINER_STATUS" != "running" ]; then
-          echo "Container failed to start properly"
+        # Verify container state
+        CONTAINER_INFO=$(docker compose ps -q crs-bot | xargs docker inspect -f '{{.State.Status}} {{.State.Health.Status}}')
+        if ! echo "$CONTAINER_INFO" | grep -q "running healthy"; then
+          echo "Container is not running or not healthy"
           docker compose logs
           exit 1
         fi
 
-        # Check logs for expected startup message
-        if ! docker compose logs | grep -q "Checking for new releases" && [ -f data/github_release_bot.log ]; then
-          echo "Container logs do not show expected startup message"
-          cat data/github_release_bot.log
+        # Check volume permissions
+        VOLUME_PERMS=$(docker compose exec -T crs-bot ls -la /app/data)
+        if ! echo "$VOLUME_PERMS" | grep -q "drwxr-x---.*crsbot.*crsbot"; then
+          echo "Data directory has incorrect permissions"
+          echo "$VOLUME_PERMS"
+          exit 1
+        fi
+
+        # Check logs for expected startup
+        timeout 10s bash -c 'until docker compose logs | grep -q "Starting new release check"; do sleep 1; done'
+
+        # Verify error handling
+        if ! docker compose logs | grep -q "HTTP error sending Discord message"; then
+          echo "Container did not properly handle invalid webhook URL"
+          docker compose logs
+          exit 1
+        fi
+
+        # Test health check
+        HEALTH_STATUS=$(docker compose ps -q crs-bot | xargs docker inspect -f '{{.State.Health.Status}}')
+        if [ "$HEALTH_STATUS" != "healthy" ]; then
+          echo "Health check failed"
           docker compose logs
           exit 1
         fi
 
         # Cleanup
-        docker compose down -v 
+        docker compose down -v
+
+    - name: Run security scan
+      uses: docker/scout-action@v1
+      with:
+        command: cves
+        image: crs-bot:test
+        only-fixed: true
+        exit-code: true

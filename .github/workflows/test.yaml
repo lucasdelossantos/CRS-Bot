@@ -40,16 +40,57 @@ jobs:
       run: |
         python -m pip install --upgrade pip
         pip install -r requirements.txt
+        pip install bandit safety
 
     - name: Create data directory
-      run: mkdir -p data
+      run: |
+        mkdir -p data
+        chmod 750 data
+
+    - name: Run security checks
+      run: |
+        # Run Bandit security checks
+        bandit -r . -ll -ii -x tests/
+
+        # Check for known vulnerabilities in dependencies
+        safety check
 
     - name: Run tests with coverage
+      env:
+        PYTHONUNBUFFERED: "1"
+        PYTHON_HASHSEED: "random"
+        DISCORD_WEBHOOK_URL: "https://discord.com/api/webhooks/test"
       run: |
-        pytest tests/ --cov=. --cov-report=xml
+        # Run tests with coverage
+        pytest tests/ --cov=. --cov-report=xml --cov-report=term-missing
+
+        # Verify minimum coverage
+        coverage report --fail-under=80
 
     - name: Upload coverage to Codecov
       uses: codecov/codecov-action@v4
       with:
         file: ./coverage.xml
         fail_ci_if_error: false # Don't fail if coverage upload fails
+
+    - name: Verify file permissions
+      run: |
+        # Check data directory permissions
+        if [ "$(stat -c %a data)" != "750" ]; then
+          echo "Data directory has incorrect permissions"
+          exit 1
+        fi
+
+        # Check log file permissions
+        touch data/github_release_bot.log
+        if [ "$(stat -c %a data/github_release_bot.log)" != "644" ]; then
+          echo "Log file has incorrect permissions"
+          exit 1
+        fi
+
+        # Check version file permissions
+        echo "{}" > data/last_version.json
+        if [ "$(stat -c %a data/last_version.json)" != "644" ]; then
+          echo "Version file has incorrect permissions"
+          exit 1
+        fi
