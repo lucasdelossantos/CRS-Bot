@@ -2,3 +2,4 @@ github_release_bot.log
 /tests/__pycache__
 .coverage
 /__pycache__
+.env

@@ -64,14 +64,20 @@ RUN groupadd -r -g 10001 crsbot && \
         --no-log-init \
         crsbot
 
-# Copy installed packages from builder
-COPY --from=builder /root/.local /home/crsbot/.local
-
 # Copy application files with correct ownership
 COPY --chown=crsbot:crsbot github_release.py .
 COPY --chown=crsbot:crsbot config.yaml .
 COPY --chown=crsbot:crsbot setup.py .
 COPY --chown=crsbot:crsbot tests/ tests/
+COPY --chown=crsbot:crsbot requirements.txt .
+
+# Install dependencies and package
+RUN pip install --no-cache-dir -r requirements.txt && \
+    pip install --no-cache-dir -e . && \
+    # Clean up pip cache
+    rm -rf /root/.cache/pip/* && \
+    # Set proper ownership of installed packages
+    chown -R crsbot:crsbot /usr/local/lib/python3.9/site-packages
 
 # Set security-related environment variables
 ENV PYTHONUNBUFFERED=1 \
@@ -82,8 +88,6 @@ ENV PYTHONUNBUFFERED=1 \
     PYTHON_HASHSEED=random \
     # Prevent core dumps
     PYTHON_DONT_WRITE_BYTECODE=1 \
-    # Set PATH to include user installed packages
-    PATH="/home/crsbot/.local/bin:$PATH" \
     # Set restrictive umask
     UMASK=0027
 
@@ -119,7 +123,4 @@ ENTRYPOINT ["/usr/bin/tini", "--"]
 CMD ["python", "github_release.py"]
 
 # Add security options
-STOPSIGNAL SIGTERM
-
-# Add security capabilities
-RUN setcap 'cap_net_bind_service=+ep' /usr/local/bin/python3.9 
+STOPSIGNAL SIGTERM 
