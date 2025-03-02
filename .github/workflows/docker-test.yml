@@ -202,15 +202,20 @@ jobs:
           -v $(pwd)/temp_data:/source \
           -v data:/target \
           --user root \
-          alpine sh -c 'cp -a /source/. /target/ && \
+          alpine sh -c 'set -x && \
+          cp -a /source/. /target/ && \
           chown -R root:10001 /target && \
           chmod 550 /target && \
           chown 10001:10001 /target/github_release_bot.log && \
           chown 10001:10001 /target/last_version.json && \
           chmod 600 /target/github_release_bot.log && \
-          chmod 600 /target/last_version.json'
+          chmod 600 /target/last_version.json && \
+          ls -la /target && \
+          stat /target/github_release_bot.log && \
+          stat /target/last_version.json'
 
-        # Start the container
+        # Start the container with explicit volume mount
+        docker compose down -v
         docker compose up -d
 
         # Clean up temporary directory
