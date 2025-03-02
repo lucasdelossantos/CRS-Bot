@@ -13,12 +13,28 @@ def ensure_data_directory():
     
     This fixture:
     1. Creates the data directory if it doesn't exist
-    2. Runs automatically for all tests (autouse=True)
-    3. Cleans up the directory after each test
+    2. Creates required files (log file, etc.)
+    3. Runs automatically for all tests (autouse=True)
+    4. Cleans up the directory after each test
     """
     # Create data directory
     data_dir = os.path.join(os.getcwd(), 'data')
     os.makedirs(data_dir, exist_ok=True)
+    
+    # Create empty log file
+    log_file = os.path.join(data_dir, 'github_release_bot.log')
+    open(log_file, 'a').close()  # Create or touch the file
+    
+    # Create empty version file
+    version_file = os.path.join(data_dir, 'last_version.json')
+    if not os.path.exists(version_file):
+        with open(version_file, 'w') as f:
+            f.write('{}')
+    
+    # Ensure proper permissions
+    os.chmod(data_dir, 0o755)  # rwxr-xr-x
+    os.chmod(log_file, 0o644)  # rw-r--r--
+    os.chmod(version_file, 0o644)  # rw-r--r--
     
     # Run the test
     yield

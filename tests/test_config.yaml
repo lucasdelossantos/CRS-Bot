@@ -12,12 +12,12 @@ github:
       user_agent: "CRS-Bot-Test"
 
 storage:
-  version_file: "test_last_version.json"
+  version_file: "data/test_last_version.json"
 
 logging:
   level: "DEBUG"
   format: "%(asctime)s - %(levelname)s - %(message)s"
-  file: "test_bot.log"
+  file: "data/test_bot.log"
 
 discord:
   notification:
