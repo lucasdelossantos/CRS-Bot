@@ -95,7 +95,7 @@ RUN mkdir -p /app/data && \
     chown root:crsbot /app/data && \
     # Set restrictive permissions
     chmod 550 /app && \
-    chmod 750 /app/data && \
+    chmod 770 /app/data && \
     # Add additional capability restrictions
     setcap cap_net_bind_service=+ep /usr/local/bin/python3.9 && \
     # Remove ALL setuid/setgid bits from the entire filesystem
