@@ -197,6 +197,11 @@ jobs:
         echo "✅ Environment file created"
 
         echo "🚀 Starting container..."
+        # Create Docker volume explicitly
+        echo "Creating Docker volume..."
+        docker volume create data
+        docker volume inspect data
+
         # Debug source directory
         echo "Source directory contents before Docker:"
         sudo ls -la temp_data
@@ -204,9 +209,10 @@ jobs:
         sudo stat temp_data/last_version.json
 
         # Initialize the named volume with our temporary directory
+        echo "Initializing volume with data..."
         docker run --rm \
-          -v $(pwd)/temp_data:/source:ro \
-          -v data:/target \
+          -v "$(pwd)/temp_data:/source:ro" \
+          -v "data:/target" \
           --user root \
           alpine sh -c 'set -x && \
           echo "Source directory contents:" && \
@@ -220,7 +226,8 @@ jobs:
           echo "Target directory created:" && \
           ls -la /target && \
           echo "Copying files..." && \
-          cd /source && find . -type f -exec cp -av {} /target/ \; && \
+          cp -av /source/github_release_bot.log /target/ && \
+          cp -av /source/last_version.json /target/ && \
           echo "Target directory after copy:" && \
           ls -la /target && \
           echo "Setting ownership and permissions..." && \
@@ -237,9 +244,19 @@ jobs:
           echo "Version file details:" && \
           stat /target/last_version.json'
 
+        # Verify volume contents after initialization
+        echo "Verifying volume contents after initialization..."
+        docker run --rm -v data:/verify alpine ls -la /verify
+
         # Start the container with explicit volume mount
+        echo "Stopping any existing containers..."
         docker compose down -v
+
+        echo "Starting container with volume..."
         docker compose up -d
+
+        # Wait a moment for the container to mount volumes
+        sleep 2
 
         # Verify permissions after container start
         echo "🔍 Verifying container permissions..."
