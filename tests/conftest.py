@@ -17,24 +17,20 @@ def ensure_data_directory():
     3. Runs automatically for all tests (autouse=True)
     4. Cleans up the directory after each test
     """
-    # Create data directory
+    # Get data directory path
     data_dir = os.path.join(os.getcwd(), 'data')
-    os.makedirs(data_dir, exist_ok=True)
     
-    # Create empty log file
+    # Create empty log file if it doesn't exist
     log_file = os.path.join(data_dir, 'github_release_bot.log')
-    open(log_file, 'a').close()  # Create or touch the file
+    if not os.path.exists(log_file):
+        with open(log_file, 'a') as f:
+            pass
     
-    # Create empty version file
+    # Create empty version file if it doesn't exist
     version_file = os.path.join(data_dir, 'last_version.json')
     if not os.path.exists(version_file):
         with open(version_file, 'w') as f:
             f.write('{}')
-    
-    # Ensure proper permissions
-    os.chmod(data_dir, 0o700)  # rwx------
-    os.chmod(log_file, 0o600)  # rw-------
-    os.chmod(version_file, 0o600)  # rw-------
     
     # Run the test
     yield
