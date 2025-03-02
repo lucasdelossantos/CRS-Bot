@@ -175,7 +175,7 @@ jobs:
       run: |
         echo "📁 Creating data directory..."
         # Create a temporary directory to initialize the volume
-        mkdir -p temp_data
+        sudo mkdir -p temp_data
         sudo chown root:10001 temp_data
         sudo chmod 550 temp_data
         # Create and set up log file
@@ -199,7 +199,7 @@ jobs:
         echo "🚀 Starting container..."
         # Debug source directory
         echo "Source directory contents:"
-        ls -la temp_data
+        sudo ls -la temp_data
 
         # Initialize the named volume with our temporary directory
         docker run --rm \
