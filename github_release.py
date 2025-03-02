@@ -65,6 +65,10 @@ config = load_config()
 
 # Configure logging
 log_file = config['logging']['file']
+if not os.path.isabs(log_file):
+    # If the path is relative, make it absolute relative to /app
+    log_file = os.path.join('/app', log_file)
+
 if not os.path.exists(log_file):
     raise RuntimeError(f"Log file {log_file} does not exist. Please create it with appropriate permissions.")
 
