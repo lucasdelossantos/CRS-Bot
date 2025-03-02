@@ -5,33 +5,24 @@ updates:
   directory: "/"
   schedule:
     interval: "daily"
-    time: "00:00"
-  open-pull-requests-limit: 10
+  target-branch: "main"
+  allow:
+  - dependency-type: "all"
+  versioning-strategy: "increase"
   labels:
   - "dependencies"
   - "python"
   # Auto-merge configuration
   auto-merge: true
-  versioning-strategy: auto
-  # Only auto-merge patch and minor updates
-  ignore:
-  - dependency-name: "*"
-    update-types: [ "version-update:semver-major" ]
 
 # Enable version updates for GitHub Actions
 - package-ecosystem: "github-actions"
   directory: "/"
   schedule:
     interval: "daily"
-    time: "00:00"
-  open-pull-requests-limit: 10
+  target-branch: "main"
   labels:
   - "dependencies"
   - "github-actions"
   # Auto-merge configuration
   auto-merge: true
-  versioning-strategy: auto
-  # Only auto-merge patch and minor updates
-  ignore:
-  - dependency-name: "*"
-    update-types: [ "version-update:semver-major" ]
