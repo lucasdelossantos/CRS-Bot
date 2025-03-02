@@ -255,18 +255,27 @@ jobs:
         echo "Starting container with volume..."
         docker compose up -d
 
-        # Wait a moment for the container to mount volumes
-        sleep 2
+        # Wait a moment for the container to mount volumes and check initial logs
+        echo "Waiting for container to start and checking logs..."
+        sleep 5
+        docker compose logs
 
         # Verify permissions after container start
         echo "🔍 Verifying container permissions..."
-        docker compose exec -T crs-bot sh -c 'set -x && \
-          echo "Data directory contents:" && \
-          ls -la /app/data && \
-          echo "Log file details:" && \
-          stat /app/data/github_release_bot.log && \
-          echo "Version file details:" && \
-          stat /app/data/last_version.json'
+        for i in {1..5}; do
+          if docker compose exec -T crs-bot sh -c 'set -x && \
+            echo "Data directory contents:" && \
+            ls -la /app/data && \
+            echo "Log file details:" && \
+            stat /app/data/github_release_bot.log && \
+            echo "Version file details:" && \
+            stat /app/data/last_version.json'; then
+            break
+          fi
+          echo "Container not ready, waiting 5 seconds..."
+          docker compose logs
+          sleep 5
+        done
 
         # Clean up temporary directory
         sudo rm -rf temp_data
@@ -280,7 +289,8 @@ jobs:
           fi
           echo "Waiting for container to be healthy..."
           docker compose ps
-          sleep 1
+          docker compose logs --tail 50
+          sleep 2
         done
 
         if [ $HEALTHY -eq 0 ]; then
