@@ -235,17 +235,13 @@ jobs:
           chown -R 0:10001 /target && \
           echo "Initial directory permissions:" && \
           ls -la /target && \
-          chmod 0770 /target &&  # First set more permissive to allow operations
-          echo "After chmod 0770:" && \
+          chmod 0750 /target &&  # Set directly to 750 instead of going through 770
+          echo "After chmod 0750:" && \
           ls -la /target && \
           chown 10001:10001 /target/github_release_bot.log && \
           chown 10001:10001 /target/last_version.json && \
           chmod 0600 /target/github_release_bot.log && \
           chmod 0600 /target/last_version.json && \
-          # Now set final directory permissions to allow group write
-          chmod 0750 /target && \
-          echo "After chmod 0750:" && \
-          ls -la /target && \
           echo "Final volume contents and permissions:" && \
           ls -la /target && \
           echo "Log file details:" && \
@@ -285,6 +281,19 @@ jobs:
 
         echo "Starting container with volume..."
         docker compose up -d
+
+        # Fix permissions after container start using a separate container
+        echo "Fixing volume permissions..."
+        docker run --rm \
+          -v data:/target \
+          --user root \
+          alpine sh -c 'set -x && \
+          chown -R 0:10001 /target && \
+          chmod 0750 /target && \
+          chown 10001:10001 /target/github_release_bot.log && \
+          chown 10001:10001 /target/last_version.json && \
+          chmod 0600 /target/github_release_bot.log && \
+          chmod 0600 /target/last_version.json'
 
         # Wait a moment for the container to mount volumes and check initial logs
         echo "Waiting for container to start and checking logs..."
