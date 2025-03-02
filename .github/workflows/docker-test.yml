@@ -223,167 +223,176 @@ jobs:
           -v "$(pwd)/temp_data:/source:ro" \
           -v "data:/target" \
           --user root \
-          alpine sh -c 'set -x && \
-          echo "Source directory contents:" && \
-          ls -la /source && \
-          echo "Source file details:" && \
-          stat /source/github_release_bot.log && \
-          stat /source/last_version.json && \
-          echo "Cleaning target..." && \
-          rm -rf /target/* && \
-          mkdir -p /target && \
-          echo "Target directory created:" && \
-          ls -la /target && \
-          echo "Copying files..." && \
-          cp -av /source/github_release_bot.log /target/ && \
-          cp -av /source/last_version.json /target/ && \
-          echo "Target directory after copy:" && \
-          ls -la /target && \
-          echo "Setting ownership and permissions..." && \
-          # Use numeric IDs to ensure consistency
-          chown -R 0:10001 /target && \
-          echo "Initial directory permissions:" && \
-          ls -la /target && \
-          chmod 0750 /target && \
-          echo "After chmod 0750:" && \
-          ls -la /target && \
-          chown 10001:10001 /target/github_release_bot.log && \
-          chown 10001:10001 /target/last_version.json && \
-          chmod 0600 /target/github_release_bot.log && \
-          chmod 0600 /target/last_version.json && \
-          echo "Final volume contents and permissions:" && \
-          ls -la /target && \
-          echo "Log file details:" && \
-          stat /target/github_release_bot.log && \
-          echo "Version file details:" && \
-          stat /target/last_version.json'
+          alpine sh -c "
+            set -x
+            echo 'Source directory contents:'
+            ls -la /source
+            echo 'Source file details:'
+            stat /source/github_release_bot.log
+            stat /source/last_version.json
+            echo 'Cleaning target...'
+            rm -rf /target/*
+            mkdir -p /target
+            echo 'Target directory created:'
+            ls -la /target
+            echo 'Copying files...'
+            cp -av /source/github_release_bot.log /target/
+            cp -av /source/last_version.json /target/
+            echo 'Target directory after copy:'
+            ls -la /target
+            echo 'Setting ownership and permissions...'
+            chown -R 0:10001 /target
+            echo 'Initial directory permissions:'
+            ls -la /target
+            chmod 0750 /target
+            echo 'After chmod 0750:'
+            ls -la /target
+            chown 10001:10001 /target/github_release_bot.log
+            chown 10001:10001 /target/last_version.json
+            chmod 0600 /target/github_release_bot.log
+            chmod 0600 /target/last_version.json
+            echo 'Final volume contents and permissions:'
+            ls -la /target
+            echo 'Log file details:'
+            stat /target/github_release_bot.log
+            echo 'Version file details:'
+            stat /target/last_version.json
+          "
 
         echo "🔍 Examining volume state after initialization..."
         docker run --rm \
           -v data:/debug \
-          alpine sh -c '
-          echo "=== Volume State After Init ===" && \
-          echo "Installing tree..." && \
-          apk add --no-cache tree && \
-          echo "\nFull directory tree:" && \
-          tree -pug /debug && \
-          echo "\nDetailed permissions:" && \
-          ls -la /debug && \
-          ls -la /debug/* && \
-          echo "\nFile details:" && \
-          stat /debug/* && \
-          echo "\nOwnership and group info:" && \
-          id'
+          alpine sh -c "
+            echo '=== Volume State After Init ==='
+            echo 'Installing tree...'
+            apk add --no-cache tree
+            echo 'Full directory tree:'
+            tree -pug /debug
+            echo 'Detailed permissions:'
+            ls -la /debug
+            ls -la /debug/*
+            echo 'File details:'
+            stat /debug/*
+            echo 'Ownership and group info:'
+            id
+          "
 
         echo "🔍 Examining early container state..."
         docker run --rm \
           --entrypoint sh \
           -v data:/app/data \
           crs-bot:test \
-          -c '
-          echo "=== Container Early State ===" && \
-          echo "Container user context:" && \
-          id && \
-          groups && \
-          echo "\nMount points:" && \
-          mount | grep app/data && \
-          echo "\nDetailed data directory state:" && \
-          ls -la /app/data && \
-          ls -la /app/data/* && \
-          echo "\nFile details:" && \
-          stat /app/data/* && \
-          echo "\nParent directory context:" && \
-          ls -la /app && \
-          stat /app/data'
-
-        # Start the container with explicit volume mount
-        echo "Stopping any existing containers..."
-        docker compose down
+          -c "
+            echo '=== Container Early State ==='
+            echo 'Container user context:'
+            id
+            groups
+            echo 'Mount points:'
+            mount | grep app/data
+            echo 'Detailed data directory state:'
+            ls -la /app/data
+            ls -la /app/data/*
+            echo 'File details:'
+            stat /app/data/*
+            echo 'Parent directory context:'
+            ls -la /app
+            stat /app/data
+          "
 
         echo "Starting container with volume..."
         docker compose up -d
 
-        # Wait for container to be running
-        echo "Waiting for container to be ready..."
-        for i in {1..30}; do
-            if docker compose ps | grep "Up"; then
-                echo "Container is up"
-                sleep 2  # Give it a moment to fully initialize
-                break
-            fi
-            echo "Waiting for container to start... ($i/30)"
-            sleep 1
-        done
+    - name: Run Python file operations test
+      run: |
+        cat > test_file_ops.py << 'EOF'
+        import os
+        import sys
+        import logging
 
-        # Add debugging for permissions and user context
-        echo "🔍 Debugging permissions and user context..."
+        log_file = '/app/data/github_release_bot.log'
+        print(f'\nTesting file operations on: {log_file}')
+        print(f'Current working directory: {os.getcwd()}')
+        print(f'Running as user: {os.getuid()}:{os.getgid()}')
 
-        echo "Container status:"
-        docker compose ps
+        print('\nTesting direct file operations:')
+        try:
+            with open(log_file, 'a') as f:
+                print('Successfully opened file for append')
+                f.write('test\n')
+                print('Successfully wrote to file')
+        except Exception as e:
+            print(f'Error with direct file operations: {e}')
+            print(f'Error type: {type(e).__name__}')
+            print(f'Error args: {e.args}')
 
+        print('\nTesting via logging module:')
+        try:
+            handler = logging.FileHandler(log_file)
+            print('Successfully created FileHandler')
+            logger = logging.getLogger('test')
+            logger.addHandler(handler)
+            print('Successfully added handler')
+            logger.warning('test log message')
+            print('Successfully logged message')
+        except Exception as e:
+            print(f'Error with logging module: {e}')
+            print(f'Error type: {type(e).__name__}')
+            print(f'Error args: {e.args}')
+        EOF
+
+        docker run --rm \
+          --entrypoint sh \
+          -v "$(pwd)/test_file_ops.py:/test.py:ro" \
+          -v data:/app/data \
+          crs-bot:test \
+          -c "
+            echo '=== System Security Context ==='
+            echo 'SELinux status:'
+            getenforce || echo 'SELinux not installed'
+            echo
+            echo 'AppArmor status:'
+            aa-status || echo 'AppArmor not installed'
+            echo
+            echo 'Capabilities:'
+            getcap /usr/local/bin/python3 || echo 'No special capabilities'
+            echo
+            echo '=== Python File Operations Test ==='
+            python3 /test.py
+          "
+
+        rm test_file_ops.py
+
+    - name: Check container state
+      run: |
         echo "Container logs:"
         docker compose logs
 
-        echo "Container user context:"
-        docker compose exec -T crs-bot id || true
-
-        if docker compose ps | grep "Up"; then
-            echo "Volume mount point permissions:"
-            docker compose exec -T crs-bot ls -la /app/data || true
-            
-            echo "Log file details:"
-            docker compose exec -T crs-bot stat /app/data/github_release_bot.log || true
-            
-            echo "Parent directory permissions:"
-            docker compose exec -T crs-bot ls -la /app || true
-        else
-            echo "Container is not running, cannot check permissions"
-        fi
-
-        # Wait a moment for the container to mount volumes and check initial logs
-        echo "Waiting for container to start and checking logs..."
-        sleep 5
-        docker compose logs
-
-        # Verify permissions after container start
-        echo "🔍 Verifying container permissions..."
-        for i in {1..5}; do
-          if docker compose exec -T crs-bot sh -c 'set -x && \
-            echo "Data directory contents:" && \
-            ls -lan /app/data && \
-            echo "Log file details:" && \
-            stat /app/data/github_release_bot.log && \
-            echo "Version file details:" && \
-            stat /app/data/last_version.json'; then
-            break
-          fi
-          echo "Container not ready, waiting 5 seconds..."
-          docker compose logs
-          sleep 5
-        done
+        echo "🔍 Final volume state:"
+        docker run --rm \
+          -v data:/debug \
+          alpine sh -c "
+            ls -la /debug
+            echo 'File contents:'
+            cat /debug/github_release_bot.log || echo 'Could not read log file'
+            echo 'File details:'
+            stat /debug/github_release_bot.log
+          "
 
         # Clean up temporary directory
         sudo rm -rf temp_data
 
         echo "⏳ Waiting for container health check..."
-        HEALTHY=0
-        for i in {1..30}; do
-          if docker compose ps | grep -q "healthy"; then
-            HEALTHY=1
-            break
-          fi
-          echo "Waiting for container to be healthy..."
-          docker compose ps
-          docker compose logs --tail 50
-          sleep 2
-        done
-
-        if [ $HEALTHY -eq 0 ]; then
+        if ! timeout 10s bash -c "until docker compose ps | grep -q 'healthy'; do 
+            echo 'Waiting for container to be healthy...'
+            sleep 1
+          done"; then
           echo "❌ Container failed to become healthy. Container logs:"
           docker compose logs
           docker compose ps
           exit 1
         fi
+
+        echo "✅ Container startup test complete"
 
         echo "🔍 Verifying container state..."
         CONTAINER_INFO=$(docker compose ps -q crs-bot | xargs docker inspect -f '{{.State.Status}} {{.State.Health.Status}}')
