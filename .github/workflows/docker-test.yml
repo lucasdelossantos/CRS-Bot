@@ -231,7 +231,8 @@ jobs:
           echo "Target directory after copy:" && \
           ls -la /target && \
           echo "Setting ownership and permissions..." && \
-          chown -R root:10001 /target && \
+          # Use numeric IDs to ensure consistency
+          chown -R 0:10001 /target && \
           chmod 550 /target && \
           chown 10001:10001 /target/github_release_bot.log && \
           chown 10001:10001 /target/last_version.json && \
@@ -244,9 +245,9 @@ jobs:
           echo "Version file details:" && \
           stat /target/last_version.json'
 
-        # Verify volume contents after initialization
-        echo "Verifying volume contents after initialization..."
-        docker run --rm -v data:/verify alpine ls -la /verify
+        # Verify volume contents and permissions after initialization
+        echo "Verifying volume contents and permissions after initialization..."
+        docker run --rm -v data:/verify --user root alpine sh -c 'ls -lan /verify && stat /verify/github_release_bot.log && stat /verify/last_version.json'
 
         # Start the container with explicit volume mount
         echo "Stopping any existing containers..."
@@ -265,7 +266,7 @@ jobs:
         for i in {1..5}; do
           if docker compose exec -T crs-bot sh -c 'set -x && \
             echo "Data directory contents:" && \
-            ls -la /app/data && \
+            ls -lan /app/data && \
             echo "Log file details:" && \
             stat /app/data/github_release_bot.log && \
             echo "Version file details:" && \
