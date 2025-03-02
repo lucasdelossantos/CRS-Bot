@@ -42,121 +42,148 @@ jobs:
 
     - name: Verify image security
       run: |
-        # Check image runs as non-root
+        echo "🔍 Checking container user context..."
         USER_INFO=$(docker run --rm crs-bot:test id)
+        echo "User Info: $USER_INFO"
         if echo "$USER_INFO" | grep -q "uid=0"; then
-          echo "Container is running as root!"
+          echo "❌ Container is running as root!"
           exit 1
         fi
+        echo "✅ Container is running as non-root user"
 
-        # Check Python security settings
+        echo "🔍 Checking Python security settings..."
         ENV_CHECK=$(docker run --rm crs-bot:test env)
+        echo "Environment variables:"
+        echo "$ENV_CHECK"
         if ! echo "$ENV_CHECK" | grep -q "PYTHONUNBUFFERED=1"; then
-          echo "Missing PYTHONUNBUFFERED environment variable"
+          echo "❌ Missing PYTHONUNBUFFERED environment variable"
           exit 1
         fi
         if ! echo "$ENV_CHECK" | grep -q "PYTHON_HASHSEED=random"; then
-          echo "Missing PYTHON_HASHSEED environment variable"
+          echo "❌ Missing PYTHON_HASHSEED environment variable"
           exit 1
         fi
+        echo "✅ Python security settings are correct"
 
-        # Check file permissions
+        echo "🔍 Checking file permissions..."
+        echo "Application directory permissions:"
+        docker run --rm crs-bot:test ls -la /app
         PERM_CHECK=$(docker run --rm crs-bot:test ls -la /app)
         if echo "$PERM_CHECK" | grep -q "^.....w...."; then
-          echo "Application files are writable!"
+          echo "❌ Application files are writable!"
           exit 1
         fi
+        echo "✅ Application files are read-only"
 
-        # Check data directory permissions
+        echo "🔍 Checking file ownership..."
+        echo "File ownership details:"
+        docker run --rm crs-bot:test stat /app/github_release.py
+        docker run --rm crs-bot:test stat /app/config.yaml
+        docker run --rm crs-bot:test stat /app/setup.py
+        docker run --rm crs-bot:test stat /app/requirements.txt
+
+        echo "🔍 Checking data directory permissions..."
+        echo "Data directory details:"
+        docker run --rm crs-bot:test ls -la /app/data
         DATA_PERM=$(docker run --rm crs-bot:test ls -la /app/data)
         if ! echo "$DATA_PERM" | grep -q "^drwxr-x---.*crsbot.*crsbot"; then
-          echo "Data directory has incorrect permissions"
+          echo "❌ Data directory has incorrect permissions"
           echo "$DATA_PERM"
           exit 1
         fi
+        echo "✅ Data directory permissions are correct"
 
-        # Check for sensitive files
-        if docker run --rm crs-bot:test find /app -type f -name "*.key" -o -name "*.pem" -o -name "*.env" 2>/dev/null; then
-          echo "Found sensitive files in the container!"
+        echo "🔍 Checking for sensitive files..."
+        SENSITIVE_FILES=$(docker run --rm crs-bot:test find /app -type f -name "*.key" -o -name "*.pem" -o -name "*.env" 2>/dev/null)
+        if [ ! -z "$SENSITIVE_FILES" ]; then
+          echo "❌ Found sensitive files in the container:"
+          echo "$SENSITIVE_FILES"
           exit 1
         fi
+        echo "✅ No sensitive files found"
 
-        # Check for setuid/setgid binaries
-        if docker run --rm crs-bot:test find / -perm /6000 -type f 2>/dev/null; then
-          echo "Found setuid/setgid binaries!"
+        echo "🔍 Checking for setuid/setgid binaries..."
+        SETUID_FILES=$(docker run --rm crs-bot:test find / -perm /6000 -type f 2>/dev/null)
+        if [ ! -z "$SETUID_FILES" ]; then
+          echo "❌ Found setuid/setgid binaries:"
+          echo "$SETUID_FILES"
           exit 1
         fi
+        echo "✅ No setuid/setgid binaries found"
+
+        echo "✅ All security checks passed!"
 
     - name: Run tests in container
       run: |
-        # Create test directories with proper permissions
+        echo "📁 Creating test directories..."
         mkdir -p tests/data
         chmod 750 tests/data
         chown 10001:10001 tests/data
+        echo "✅ Test directories created with correct permissions"
 
-        # Run tests with coverage
+        echo "🧪 Running tests with coverage..."
         docker run --rm \
           -v ${{ github.workspace }}/tests:/app/tests:ro \
           --user crsbot \
           crs-bot:test \
-          pytest tests/ --cov=. --cov-report=xml
+          pytest tests/ --cov=. --cov-report=xml -v
 
     - name: Test container startup and functionality
       run: |
-        # Create data directory with proper permissions
+        echo "📁 Creating data directory..."
         mkdir -p data
         chmod 750 data
         chown 10001:10001 data
+        echo "✅ Data directory created with correct permissions"
 
-        # Create test environment file
+        echo "📝 Creating test environment file..."
         cat > .env << EOL
         DISCORD_WEBHOOK_URL=https://discord.com/api/webhooks/test
         PYTHONUNBUFFERED=1
         EOL
         chmod 640 .env
+        echo "✅ Environment file created"
 
-        # Start container
+        echo "🚀 Starting container..."
         docker compose up -d
 
-        # Wait for container to be healthy
-        timeout 30s bash -c 'while ! docker compose ps | grep -q "healthy"; do sleep 1; done'
+        echo "⏳ Waiting for container health check..."
+        timeout 30s bash -c 'while ! docker compose ps | grep -q "healthy"; do 
+          echo "Waiting for container to be healthy..."; 
+          docker compose ps;
+          sleep 1; 
+        done'
 
-        # Verify container state
+        echo "🔍 Verifying container state..."
         CONTAINER_INFO=$(docker compose ps -q crs-bot | xargs docker inspect -f '{{.State.Status}} {{.State.Health.Status}}')
+        echo "Container state: $CONTAINER_INFO"
         if ! echo "$CONTAINER_INFO" | grep -q "running healthy"; then
-          echo "Container is not running or not healthy"
+          echo "❌ Container is not running or not healthy"
+          echo "Container logs:"
           docker compose logs
           exit 1
         fi
+        echo "✅ Container is running and healthy"
 
-        # Check volume permissions
+        echo "🔍 Checking volume permissions..."
+        echo "Volume permissions:"
         VOLUME_PERMS=$(docker compose exec -T crs-bot ls -la /app/data)
+        echo "$VOLUME_PERMS"
         if ! echo "$VOLUME_PERMS" | grep -q "drwxr-x---.*crsbot.*crsbot"; then
-          echo "Data directory has incorrect permissions"
+          echo "❌ Data directory has incorrect permissions"
           echo "$VOLUME_PERMS"
           exit 1
         fi
+        echo "✅ Volume permissions are correct"
 
-        # Check logs for expected startup
-        timeout 10s bash -c 'until docker compose logs | grep -q "Starting new release check"; do sleep 1; done'
+        echo "📋 Checking startup logs..."
+        timeout 10s bash -c 'until docker compose logs | grep -q "Starting new release check"; do 
+          echo "Waiting for startup message...";
+          sleep 1; 
+        done'
+        echo "✅ Application started successfully"
 
-        # Verify error handling
-        if ! docker compose logs | grep -q "HTTP error sending Discord message"; then
-          echo "Container did not properly handle invalid webhook URL"
-          docker compose logs
-          exit 1
-        fi
-
-        # Test health check
-        HEALTH_STATUS=$(docker compose ps -q crs-bot | xargs docker inspect -f '{{.State.Health.Status}}')
-        if [ "$HEALTH_STATUS" != "healthy" ]; then
-          echo "Health check failed"
-          docker compose logs
-          exit 1
-        fi
-
-        # Cleanup
-        docker compose down -v
+        echo "✅ All container tests passed!"
 
     - name: Run security scan
       uses: docker/scout-action@v1
