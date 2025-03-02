@@ -6,11 +6,10 @@ on:
 jobs:
   update-deps:
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
-      pull-requests: write
     steps:
     - uses: actions/checkout@v4
+      with:
+        token: ${{ secrets.PAT_TOKEN }}
 
     - name: Update requirements.txt
       run: |
@@ -21,7 +20,7 @@ jobs:
     - name: Create Pull Request
       uses: peter-evans/create-pull-request@v6
       with:
-        token: ${{ secrets.GITHUB_TOKEN }}
+        token: ${{ secrets.PAT_TOKEN }}
         commit-message: "build(deps): update requests to latest version"
         title: "build(deps): update requests to latest version"
         body: "Update requests package to latest version"
