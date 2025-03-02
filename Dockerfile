@@ -88,6 +88,9 @@ ENV PYTHONUNBUFFERED=1 \
     # Set restrictive umask
     UMASK=0027
 
+# Create volume for persistent storage
+VOLUME ["/app/data"]
+
 # Create data directory and set permissions
 RUN mkdir -p /app/data && \
     # Set proper ownership and permissions
@@ -95,7 +98,7 @@ RUN mkdir -p /app/data && \
     chown root:crsbot /app/data && \
     # Set restrictive permissions
     chmod 550 /app && \
-    chmod 770 /app/data && \
+    chmod 750 /app/data && \
     # Add additional capability restrictions
     setcap cap_net_bind_service=+ep /usr/local/bin/python3.9 && \
     # Remove ALL setuid/setgid bits from the entire filesystem
@@ -103,9 +106,6 @@ RUN mkdir -p /app/data && \
     find / -path /proc -prune -o -perm /6000 -type f -exec chmod a-s {} + 2>/dev/null || true && \
     echo "Verifying no setuid/setgid files remain..." && \
     find / -path /proc -prune -o -perm /6000 -type f -ls 2>/dev/null || true
-
-# Create volume for persistent storage
-VOLUME ["/app/data"]
 
 # Add health check with timeout and retries
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
