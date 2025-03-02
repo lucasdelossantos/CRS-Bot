@@ -5,11 +5,7 @@ services:
     build: .
     volumes:
       - .:/app:ro  # Mount current directory read-only for development
-      - type: volume
-        source: data
-        target: /app/data
-        volume:
-          nocopy: true  # Don't copy data from container
+      - data:/app/data  # Use simple volume mount since we initialize it properly
     environment:
       - DISCORD_WEBHOOK_URL=${DISCORD_WEBHOOK_URL}  # From .env file or environment
       - PYTHONUNBUFFERED=1
@@ -23,9 +19,4 @@ services:
       start_period: 5s
 
 volumes:
-  data:
-    driver: local
-    driver_opts:
-      type: none
-      o: bind
-      device: /app/data 
+  data:  # Use default volume driver 

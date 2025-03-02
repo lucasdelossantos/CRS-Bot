@@ -199,12 +199,7 @@ jobs:
         echo "🚀 Starting container..."
         # Create Docker volume explicitly
         echo "Creating Docker volume..."
-        docker volume create \
-          --driver local \
-          --opt type=none \
-          --opt o=bind \
-          --opt device=$(pwd)/temp_data \
-          data
+        docker volume create data
 
         # Initialize the volume with correct permissions
         echo "Setting up volume permissions..."
@@ -212,12 +207,16 @@ jobs:
           -v data:/target \
           --user root \
           alpine sh -c 'set -x && \
-          chown -R 0:10001 /target && \
+          mkdir -p /target && \
+          chown 0:10001 /target && \
           chmod 0750 /target && \
+          touch /target/github_release_bot.log && \
+          touch /target/last_version.json && \
           chown 10001:10001 /target/github_release_bot.log && \
           chown 10001:10001 /target/last_version.json && \
           chmod 0600 /target/github_release_bot.log && \
           chmod 0600 /target/last_version.json && \
+          echo "{}" > /target/last_version.json && \
           echo "Final permissions:" && \
           ls -la /target'
 
