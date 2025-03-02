@@ -198,8 +198,10 @@ jobs:
 
         echo "🚀 Starting container..."
         # Debug source directory
-        echo "Source directory contents:"
+        echo "Source directory contents before Docker:"
         sudo ls -la temp_data
+        sudo stat temp_data/github_release_bot.log
+        sudo stat temp_data/last_version.json
 
         # Initialize the named volume with our temporary directory
         docker run --rm \
@@ -209,11 +211,16 @@ jobs:
           alpine sh -c 'set -x && \
           echo "Source directory contents:" && \
           ls -la /source && \
+          echo "Source file details:" && \
+          stat /source/github_release_bot.log && \
+          stat /source/last_version.json && \
+          echo "Cleaning target..." && \
           rm -rf /target/* && \
           mkdir -p /target && \
+          echo "Target directory created:" && \
+          ls -la /target && \
           echo "Copying files..." && \
-          cp -av /source/github_release_bot.log /target/ && \
-          cp -av /source/last_version.json /target/ && \
+          cd /source && find . -type f -exec cp -av {} /target/ \; && \
           echo "Target directory after copy:" && \
           ls -la /target && \
           echo "Setting ownership and permissions..." && \
