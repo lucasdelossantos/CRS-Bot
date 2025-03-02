@@ -1,0 +1,23 @@
+name: Manual Dependabot
+on:
+  workflow_dispatch:
+
+
+jobs:
+  dependabot:
+    name: 'Dependabot'
+    runs-on: ubuntu-latest
+    steps:
+    - name: Enable GitHub App token
+      id: generate_token
+      uses: tibdex/github-app-token@v2
+      with:
+        app_id: ${{ secrets.APP_ID }}
+        private_key: ${{ secrets.APP_PRIVATE_KEY }}
+
+    - name: Trigger Dependabot
+      uses: actions/checkout@v4
+    - run: |
+        gh auth login --with-token <<< "${{ steps.generate_token.outputs.token }}"
+        gh api -X POST repos/${{ github.repository }}/dependabot/scans \
+          --silent 
