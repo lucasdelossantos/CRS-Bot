@@ -28,7 +28,8 @@ ENV PYTHONUNBUFFERED=1
 
 # Create data directory and set permissions
 RUN mkdir -p /app/data && \
-    chown -R crsbot:crsbot /app
+    chown -R crsbot:crsbot /app && \
+    chmod 755 /app/data
 
 # Create volume for persistent storage
 VOLUME ["/app/data"]

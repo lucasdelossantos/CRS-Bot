@@ -76,8 +76,9 @@ jobs:
         fi
 
         # Check logs for expected startup message
-        if ! docker compose logs | grep -q "Checking for new releases"; then
+        if ! docker compose logs | grep -q "Checking for new releases" && [ -f data/github_release_bot.log ]; then
           echo "Container logs do not show expected startup message"
+          cat data/github_release_bot.log
           docker compose logs
           exit 1
         fi

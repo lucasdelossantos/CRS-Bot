@@ -14,13 +14,13 @@ github:
 
 # File Storage Configuration
 storage:
-  version_file: "last_version.json"
+  version_file: "data/last_version.json"
 
 # Logging Configuration
 logging:
   level: "INFO"
   format: "%(asctime)s - %(levelname)s - %(message)s"
-  file: "github_release_bot.log"
+  file: "data/github_release_bot.log"
 
 # Discord Configuration
 discord:
