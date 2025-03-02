@@ -26,5 +26,9 @@ ENV PYTHONUNBUFFERED=1
 # Create volume for persistent storage
 VOLUME ["/app/data"]
 
+# Add health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+    CMD python -c "import requests; requests.get('https://api.github.com/zen')" || exit 1
+
 # Run the bot
 CMD ["python", "github_release.py"] 

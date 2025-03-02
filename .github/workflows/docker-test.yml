@@ -1,0 +1,77 @@
+name: Docker Tests
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+    - 'Dockerfile'
+    - 'docker-compose.yml'
+    - '.dockerignore'
+    - 'requirements.txt'
+    - 'setup.py'
+    - '**.py'
+  pull_request:
+    branches: [ main ]
+    paths:
+    - 'Dockerfile'
+    - 'docker-compose.yml'
+    - '.dockerignore'
+    - 'requirements.txt'
+    - 'setup.py'
+    - '**.py'
+  workflow_dispatch:
+
+
+jobs:
+  docker-test:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: Build Docker image
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        load: true
+        tags: crs-bot:test
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+
+    - name: Run tests in container
+      run: |
+        docker run --rm \
+          -v ${{ github.workspace }}/tests:/app/tests \
+          crs-bot:test \
+          pytest tests/
+
+    - name: Test container startup
+      run: |
+        # Create dummy webhook URL for testing
+        echo "DISCORD_WEBHOOK_URL=https://discord.com/api/webhooks/test" > .env
+
+        # Start container
+        docker compose up -d
+
+        # Wait for container to be healthy
+        sleep 10
+
+        # Check container is running
+        CONTAINER_STATUS=$(docker compose ps -q crs-bot | xargs docker inspect -f '{{.State.Status}}')
+        if [ "$CONTAINER_STATUS" != "running" ]; then
+          echo "Container failed to start properly"
+          docker compose logs
+          exit 1
+        fi
+
+        # Check logs for expected startup message
+        if ! docker compose logs | grep -q "Checking for new releases"; then
+          echo "Container logs do not show expected startup message"
+          docker compose logs
+          exit 1
+        fi
+
+        # Cleanup
+        docker compose down -v 
