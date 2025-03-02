@@ -5,7 +5,7 @@ services:
     build: .
     volumes:
       - .:/app:ro  # Mount current directory read-only for development
-      - data:/app/data  # Use simple volume mount since we initialize it properly
+      - data:/app/data  # Persistent volume for last_version.json
     environment:
       - DISCORD_WEBHOOK_URL=${DISCORD_WEBHOOK_URL}  # From .env file or environment
       - PYTHONUNBUFFERED=1
@@ -19,4 +19,4 @@ services:
       start_period: 5s
 
 volumes:
-  data:  # Use default volume driver 
+  data:  # Named volume for persistent data 

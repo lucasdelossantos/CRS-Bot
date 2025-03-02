@@ -201,24 +201,46 @@ jobs:
         echo "Creating Docker volume..."
         docker volume create data
 
-        # Initialize the volume with correct permissions
-        echo "Setting up volume permissions..."
+        # Initialize the named volume with our temporary directory
+        echo "Initializing volume with data..."
         docker run --rm \
-          -v data:/target \
+          -v "$(pwd)/temp_data:/source:ro" \
+          -v "data:/target" \
           --user root \
           alpine sh -c 'set -x && \
+          echo "Source directory contents:" && \
+          ls -la /source && \
+          echo "Source file details:" && \
+          stat /source/github_release_bot.log && \
+          stat /source/last_version.json && \
+          echo "Cleaning target..." && \
+          rm -rf /target/* && \
           mkdir -p /target && \
-          chown 0:10001 /target && \
+          echo "Target directory created:" && \
+          ls -la /target && \
+          echo "Copying files..." && \
+          cp -av /source/github_release_bot.log /target/ && \
+          cp -av /source/last_version.json /target/ && \
+          echo "Target directory after copy:" && \
+          ls -la /target && \
+          echo "Setting ownership and permissions..." && \
+          # Use numeric IDs to ensure consistency
+          chown -R 0:10001 /target && \
+          echo "Initial directory permissions:" && \
+          ls -la /target && \
           chmod 0750 /target && \
-          touch /target/github_release_bot.log && \
-          touch /target/last_version.json && \
+          echo "After chmod 0750:" && \
+          ls -la /target && \
           chown 10001:10001 /target/github_release_bot.log && \
           chown 10001:10001 /target/last_version.json && \
           chmod 0600 /target/github_release_bot.log && \
           chmod 0600 /target/last_version.json && \
-          echo "{}" > /target/last_version.json && \
-          echo "Final permissions:" && \
-          ls -la /target'
+          echo "Final volume contents and permissions:" && \
+          ls -la /target && \
+          echo "Log file details:" && \
+          stat /target/github_release_bot.log && \
+          echo "Version file details:" && \
+          stat /target/last_version.json'
 
         # Start the container with explicit volume mount
         echo "Stopping any existing containers..."
