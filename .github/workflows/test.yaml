@@ -92,6 +92,7 @@ jobs:
 
         echo "Checking log file permissions..."
         touch data/github_release_bot.log
+        chmod 600 data/github_release_bot.log
         # Show current permissions
         ls -la data/github_release_bot.log
         stat data/github_release_bot.log
@@ -104,6 +105,7 @@ jobs:
 
         echo "Checking version file permissions..."
         echo "{}" > data/last_version.json
+        chmod 600 data/last_version.json
         # Show current permissions
         ls -la data/last_version.json
         stat data/last_version.json
