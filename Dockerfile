@@ -64,11 +64,10 @@ RUN groupadd -r -g 10001 crsbot && \
         --no-log-init \
         crsbot
 
-# Copy application files with correct ownership
+# Copy only runtime files with correct ownership
 COPY --chown=crsbot:crsbot github_release.py .
 COPY --chown=crsbot:crsbot config.yaml .
 COPY --chown=crsbot:crsbot setup.py .
-COPY --chown=crsbot:crsbot tests/ tests/
 COPY --chown=crsbot:crsbot requirements.txt .
 
 # Install dependencies and package
@@ -83,7 +82,6 @@ RUN pip install --no-cache-dir -r requirements.txt && \
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     PIP_NO_CACHE_DIR=1 \
-    PYTHONPYCACHEPREFIX=/tmp \
     # Add security-related env vars
     PYTHON_HASHSEED=random \
     # Prevent core dumps
@@ -93,14 +91,12 @@ ENV PYTHONUNBUFFERED=1 \
 
 # Create data directory and set permissions
 RUN mkdir -p /app/data && \
-    # Create temp directories
-    mkdir -p /tmp/pytest_cache && \
     # Set proper ownership
-    chown -R crsbot:crsbot /app /tmp/pytest_cache && \
+    chown -R crsbot:crsbot /app && \
     # Set restrictive permissions
-    chmod 750 /app && \
-    chmod 750 /app/data && \
-    chmod -R a-w /app/github_release.py /app/config.yaml /app/setup.py /app/tests && \
+    chmod 700 /app && \
+    chmod 700 /app/data && \
+    chmod 400 /app/github_release.py /app/config.yaml /app/setup.py && \
     # Add additional capability restrictions
     setcap cap_net_bind_service=+ep /usr/local/bin/python3.9 && \
     # Remove unnecessary setuid/setgid
