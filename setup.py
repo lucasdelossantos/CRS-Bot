@@ -12,6 +12,7 @@ setup(
         "requests>=2.31.0",
         "pyyaml>=6.0.1",
         "responses>=0.25.0",
+        "setuptools>=69.0.3",
     ],
     python_requires=">=3.9",
     classifiers=[
