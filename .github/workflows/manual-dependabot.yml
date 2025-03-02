@@ -117,40 +117,72 @@ jobs:
         checkout_version="v4"
         setup_python_version="v5"
 
+        # Track if any changes were made
+        changes_made=false
+
         # Update all workflow files
         for file in .github/workflows/*.yml .github/workflows/*.yaml; do
           if [ -f "$file" ]; then
             echo "Processing $file..."
+            # Store original content
+            original_content=$(cat "$file")
+            
             # Update action versions
-            sed -i "s/actions\/checkout@v[0-9]/actions\/checkout@$checkout_version/g" "$file"
-            sed -i "s/actions\/setup-python@v[0-9]/actions\/setup-python@$setup_python_version/g" "$file"
+            updated_content=$(echo "$original_content" | sed "s/actions\/checkout@v[0-9]/actions\/checkout@$checkout_version/g" | sed "s/actions\/setup-python@v[0-9]/actions\/setup-python@$setup_python_version/g")
+            
+            # Compare and update if different
+            if [ "$original_content" != "$updated_content" ]; then
+              echo "Changes needed in $file"
+              echo "$updated_content" > "$file"
+              changes_made=true
+            else
+              echo "No changes needed in $file"
+            fi
           fi
         done
 
         # Check if there are changes
-        if git diff --quiet; then
-          echo "No workflow updates needed"
-        else
+        if [ "$changes_made" = true ]; then
           echo "Changes detected in workflow files"
+          
+          # Show the changes for debugging
+          git diff
           
           # Commit and push changes
           git add .github/workflows/
           git commit -m "ci(deps): update GitHub Actions to latest versions"
           git push -f origin deps/update-actions
 
-          # Create PR
+          # Create PR with error checking
           echo "Creating workflow updates PR..."
-          gh pr create \
+          if ! gh pr create \
             --title "ci(deps): update GitHub Actions" \
-            --body "Update GitHub Actions to their latest versions" \
+            --body "Update GitHub Actions to their latest versions:
+            - Update actions/checkout to $checkout_version
+            - Update actions/setup-python to $setup_python_version" \
             --label "dependencies" \
             --label "github_actions" \
-            --base main
+            --base main; then
+            echo "Error creating PR. Checking if it already exists..."
+            existing_pr=$(gh pr list --json number,headRefName --jq '.[] | select(.headRefName == "deps/update-actions") | .number')
+            if [ ! -z "$existing_pr" ]; then
+              echo "PR already exists with number #$existing_pr"
+            else
+              echo "Failed to create PR and no existing PR found"
+              exit 1
+            fi
+          fi
 
-          # Enable auto-merge
+          # Enable auto-merge with error checking
           pr_number=$(gh pr list --json number,headRefName --jq '.[] | select(.headRefName == "deps/update-actions") | .number')
           if [ ! -z "$pr_number" ]; then
             echo "Enabling auto-merge for PR #$pr_number"
-            gh pr merge "$pr_number" --auto --merge || true
+            if ! gh pr merge "$pr_number" --auto --merge; then
+              echo "Failed to enable auto-merge for PR #$pr_number"
+            fi
+          else
+            echo "Could not find PR number for auto-merge"
           fi
+        else
+          echo "No workflow updates needed"
         fi
