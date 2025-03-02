@@ -21,6 +21,14 @@ jobs:
         && sudo apt update \
         && sudo apt install gh -y
 
+    - name: Configure auto-delete merged branches
+      env:
+        GH_TOKEN: ${{ secrets.PAT_TOKEN }}
+      run: |
+        # Enable auto-delete head branches in repository settings
+        gh api -X PATCH /repos/${{ github.repository }} \
+          -f delete_branch_on_merge=true
+
     - name: Checkout repository
       uses: actions/checkout@v4
       with:
@@ -104,14 +112,13 @@ jobs:
               --body "Update Python package dependencies to their latest versions" \
               --label "dependencies" \
               --label "python" \
-              --base main \
-              --delete-branch-on-merge
+              --base main
 
             # Enable auto-merge
             pr_number=$(gh pr list --json number,headRefName --jq '.[] | select(.headRefName == "deps/update-python") | .number')
             if [ ! -z "$pr_number" ]; then
               echo "Enabling auto-merge for PR #$pr_number"
-              gh pr merge "$pr_number" --auto --merge --delete-branch || true
+              gh pr merge "$pr_number" --auto --merge || true
             fi
           else
             echo "No changes needed in requirements.txt"
@@ -186,8 +193,7 @@ jobs:
             - Update actions/setup-python to $setup_python_version" \
             --label "dependencies" \
             --label "github_actions" \
-            --base main \
-            --delete-branch-on-merge; then
+            --base main; then
             echo "Error creating PR. Checking if it already exists..."
             existing_pr=$(gh pr list --json number,headRefName --jq '.[] | select(.headRefName == "deps/update-actions") | .number')
             if [ ! -z "$existing_pr" ]; then
@@ -202,7 +208,7 @@ jobs:
           pr_number=$(gh pr list --json number,headRefName --jq '.[] | select(.headRefName == "deps/update-actions") | .number')
           if [ ! -z "$pr_number" ]; then
             echo "Enabling auto-merge for PR #$pr_number"
-            if ! gh pr merge "$pr_number" --auto --merge --delete-branch; then
+            if ! gh pr merge "$pr_number" --auto --merge; then
               echo "Failed to enable auto-merge for PR #$pr_number"
             fi
           else
