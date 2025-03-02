@@ -104,10 +104,17 @@ jobs:
         echo "✅ No sensitive files found"
 
         echo "🔍 Checking for setuid/setgid binaries..."
-        SETUID_FILES=$(docker run --rm crs-bot:test find / -perm /6000 -type f 2>/dev/null)
+        echo "Searching for files with setuid/setgid bits..."
+        SETUID_FILES=$(docker run --rm crs-bot:test find / -perm /6000 -type f 2>/dev/null || true)
         if [ ! -z "$SETUID_FILES" ]; then
           echo "❌ Found setuid/setgid binaries:"
           echo "$SETUID_FILES"
+          echo "Details of found files:"
+          for file in $SETUID_FILES; do
+            echo "File: $file"
+            docker run --rm crs-bot:test ls -l "$file"
+            docker run --rm crs-bot:test stat "$file"
+          done
           exit 1
         fi
         echo "✅ No setuid/setgid binaries found"

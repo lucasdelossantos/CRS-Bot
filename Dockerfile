@@ -51,8 +51,6 @@ RUN apt-get update && \
         # Clean up
         && apt-get clean \
         && rm -rf /var/lib/apt/lists/* \
-        # Remove setuid/setgid permissions
-        && find / -perm /6000 -type f -exec chmod a-s {} \; || true \
         # Set restrictive umask
         && echo "umask 0027" >> /etc/profile
 
@@ -100,8 +98,11 @@ RUN mkdir -p /app/data && \
     chmod 550 /app/data && \
     # Add additional capability restrictions
     setcap cap_net_bind_service=+ep /usr/local/bin/python3.9 && \
-    # Remove unnecessary setuid/setgid
-    find / -perm /6000 -type f -exec chmod a-s {} \; || true
+    # Remove ALL setuid/setgid bits from the entire filesystem
+    echo "Removing setuid/setgid bits from all files..." && \
+    find / -path /proc -prune -o -perm /6000 -type f -exec chmod a-s {} + 2>/dev/null || true && \
+    echo "Verifying no setuid/setgid files remain..." && \
+    find / -path /proc -prune -o -perm /6000 -type f -ls 2>/dev/null || true
 
 # Create volume for persistent storage
 VOLUME ["/app/data"]
