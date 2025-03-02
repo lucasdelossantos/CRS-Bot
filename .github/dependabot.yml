@@ -10,6 +10,13 @@ updates:
   labels:
   - "dependencies"
   - "python"
+  # Auto-merge configuration
+  auto-merge: true
+  versioning-strategy: auto
+  # Only auto-merge patch and minor updates
+  ignore:
+  - dependency-name: "*"
+    update-types: [ "version-update:semver-major" ]
 
 # Enable version updates for GitHub Actions
 - package-ecosystem: "github-actions"
@@ -21,3 +28,10 @@ updates:
   labels:
   - "dependencies"
   - "github-actions"
+  # Auto-merge configuration
+  auto-merge: true
+  versioning-strategy: auto
+  # Only auto-merge patch and minor updates
+  ignore:
+  - dependency-name: "*"
+    update-types: [ "version-update:semver-major" ]
