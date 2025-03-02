@@ -64,19 +64,20 @@ RUN groupadd -r -g 10001 crsbot && \
         --no-log-init \
         crsbot
 
-# Copy only runtime files with correct ownership and permissions
-COPY --chown=crsbot:crsbot --chmod=400 github_release.py .
-COPY --chown=crsbot:crsbot --chmod=400 config.yaml .
-COPY --chown=crsbot:crsbot --chmod=400 setup.py .
-COPY --chown=crsbot:crsbot --chmod=400 requirements.txt .
+# Copy runtime files with root ownership and restrictive permissions
+COPY --chmod=440 github_release.py .
+COPY --chmod=440 config.yaml .
+COPY --chmod=440 setup.py .
+COPY --chmod=440 requirements.txt .
 
 # Install dependencies and package
 RUN pip install --no-cache-dir -r requirements.txt && \
     pip install --no-cache-dir -e . && \
     # Clean up pip cache
     rm -rf /root/.cache/pip/* && \
-    # Set proper ownership of installed packages
-    chown -R crsbot:crsbot /usr/local/lib/python3.9/site-packages
+    # Set proper group for installed packages
+    chgrp -R crsbot /usr/local/lib/python3.9/site-packages && \
+    chmod -R g+r /usr/local/lib/python3.9/site-packages
 
 # Set security-related environment variables
 ENV PYTHONUNBUFFERED=1 \
