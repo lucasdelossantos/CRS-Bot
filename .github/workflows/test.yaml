@@ -45,7 +45,7 @@ jobs:
     - name: Create data directory
       run: |
         mkdir -p data
-        chmod 750 data
+        chmod 700 data
 
     - name: Run security checks
       run: |
@@ -76,21 +76,21 @@ jobs:
     - name: Verify file permissions
       run: |
         # Check data directory permissions
-        if [ "$(stat -c %a data)" != "750" ]; then
+        if [ "$(stat -c %a data)" != "700" ]; then
           echo "Data directory has incorrect permissions"
           exit 1
         fi
 
         # Check log file permissions
         touch data/github_release_bot.log
-        if [ "$(stat -c %a data/github_release_bot.log)" != "644" ]; then
+        if [ "$(stat -c %a data/github_release_bot.log)" != "600" ]; then
           echo "Log file has incorrect permissions"
           exit 1
         fi
 
         # Check version file permissions
         echo "{}" > data/last_version.json
-        if [ "$(stat -c %a data/last_version.json)" != "644" ]; then
+        if [ "$(stat -c %a data/last_version.json)" != "600" ]; then
           echo "Version file has incorrect permissions"
           exit 1
         fi
