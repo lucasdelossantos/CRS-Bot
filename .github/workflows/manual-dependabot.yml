@@ -27,6 +27,16 @@ jobs:
         token: ${{ secrets.PAT_TOKEN }}
         fetch-depth: 0
 
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.x'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+
     - name: Close existing PRs
       env:
         GH_TOKEN: ${{ secrets.PAT_TOKEN }}
@@ -72,6 +82,8 @@ jobs:
             echo "flake8>=6.1.0"
             echo "isort>=5.12.0"
             echo "mypy>=1.7.0"
+            echo "pyyaml>=6.0.1"
+            echo "responses>=0.25.0"
           } > requirements.txt.new
           
           # Check if there are actual changes
