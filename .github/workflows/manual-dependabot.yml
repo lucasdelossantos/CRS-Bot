@@ -10,20 +10,27 @@ jobs:
     permissions:
       contents: write
       pull-requests: write
+      packages: write
+      security-events: write
     steps:
     - name: Checkout repository
       uses: actions/checkout@v4
 
-    - name: Setup Ruby
-      uses: ruby/setup-ruby@v1
-      with:
-        ruby-version: '3.0'
-
-    - name: Install Dependabot CLI
-      run: gem install dependabot-cli
-
     - name: Run Dependabot
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      uses: dependabot/fetch-metadata@v1.6.0
+      with:
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Install GitHub CLI
       run: |
-        dependabot update pip 
+        type -p curl >/dev/null || (sudo apt update && sudo apt install curl -y)
+        curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | sudo dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg \
+        && sudo chmod go+r /usr/share/keyrings/githubcli-archive-keyring.gpg \
+        && echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | sudo tee /etc/apt/sources.list.d/github-cli.list > /dev/null \
+        && sudo apt update \
+        && sudo apt install gh -y
+
+    - name: Enable auto-merge for Dependabot PRs
+      run: |
+        gh auth login --with-token <<< "${{ secrets.GITHUB_TOKEN }}"
+        gh pr list --json number,author,headRefName --jq '.[] | select(.author.login == "dependabot[bot]") | .number' | xargs -I % gh pr merge % --auto --merge 
