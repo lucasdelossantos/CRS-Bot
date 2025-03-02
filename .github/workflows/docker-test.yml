@@ -265,25 +265,42 @@ jobs:
         echo "Starting container with volume..."
         docker compose up -d
 
+        # Wait for container to be running
+        echo "Waiting for container to be ready..."
+        for i in {1..30}; do
+            if docker compose ps | grep "Up"; then
+                echo "Container is up"
+                sleep 2  # Give it a moment to fully initialize
+                break
+            fi
+            echo "Waiting for container to start... ($i/30)"
+            sleep 1
+        done
+
         # Add debugging for permissions and user context
         echo "🔍 Debugging permissions and user context..."
+
+        echo "Container status:"
+        docker compose ps
+
+        echo "Container logs:"
+        docker compose logs
+
         echo "Container user context:"
-        docker compose exec -T crs-bot id
+        docker compose exec -T crs-bot id || true
 
-        echo "Volume mount point permissions:"
-        docker compose exec -T crs-bot ls -la /app/data
-
-        echo "Log file details:"
-        docker compose exec -T crs-bot stat /app/data/github_release_bot.log || true
-
-        echo "Group memberships and permissions:"
-        docker compose exec -T crs-bot sh -c 'groups && getfacl /app/data/github_release_bot.log' || true
-
-        echo "Parent directory permissions:"
-        docker compose exec -T crs-bot ls -la /app
-
-        echo "Process context:"
-        docker compose exec -T crs-bot ps aux
+        if docker compose ps | grep "Up"; then
+            echo "Volume mount point permissions:"
+            docker compose exec -T crs-bot ls -la /app/data || true
+            
+            echo "Log file details:"
+            docker compose exec -T crs-bot stat /app/data/github_release_bot.log || true
+            
+            echo "Parent directory permissions:"
+            docker compose exec -T crs-bot ls -la /app || true
+        else
+            echo "Container is not running, cannot check permissions"
+        fi
 
         # Wait a moment for the container to mount volumes and check initial logs
         echo "Waiting for container to start and checking logs..."
