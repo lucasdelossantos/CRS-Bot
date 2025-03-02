@@ -42,8 +42,13 @@ jobs:
 
     - name: Run tests in container
       run: |
+        # Create test directory with restricted permissions
+        mkdir -p tests/data
+        chmod 555 tests/data
+
         docker run --rm \
           -v ${{ github.workspace }}/tests:/app/tests \
+          --user crsbot \
           crs-bot:test \
           pytest tests/
 
@@ -51,6 +56,10 @@ jobs:
       run: |
         # Create dummy webhook URL for testing
         echo "DISCORD_WEBHOOK_URL=https://discord.com/api/webhooks/test" > .env
+
+        # Create data directory with proper permissions
+        mkdir -p data
+        chmod 777 data
 
         # Start container
         docker compose up -d

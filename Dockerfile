@@ -10,6 +10,9 @@ RUN apt-get update && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
+# Create non-root user
+RUN groupadd -r crsbot && useradd -r -g crsbot crsbot
+
 # Copy requirements first for better caching
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
@@ -23,12 +26,19 @@ RUN pip install -e .
 # Set environment variables
 ENV PYTHONUNBUFFERED=1
 
+# Create data directory and set permissions
+RUN mkdir -p /app/data && \
+    chown -R crsbot:crsbot /app
+
 # Create volume for persistent storage
 VOLUME ["/app/data"]
 
 # Add health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
     CMD python -c "import requests; requests.get('https://api.github.com/zen')" || exit 1
+
+# Switch to non-root user
+USER crsbot
 
 # Run the bot
 CMD ["python", "github_release.py"] 
