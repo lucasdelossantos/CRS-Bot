@@ -127,14 +127,20 @@ jobs:
         mkdir -p tests/data
         sudo chmod 550 tests/data
         sudo chown root:10001 tests/data
+        # Create coverage directory with write permissions for crsbot
+        mkdir -p tests/coverage
+        sudo chown 10001:10001 tests/coverage
+        sudo chmod 700 tests/coverage
         echo "✅ Test directories created with correct permissions"
 
         echo "🧪 Running tests with coverage..."
         docker run --rm \
           -v ${{ github.workspace }}/tests:/app/tests:ro \
+          -v ${{ github.workspace }}/tests/coverage:/coverage:rw \
+          -e COVERAGE_FILE=/coverage/.coverage \
           --user crsbot \
           crs-bot:test \
-          pytest tests/ --cov=. --cov-report=xml -v
+          pytest tests/ --cov=. --cov-report=xml:/coverage/coverage.xml -v
 
     - name: Test container startup and functionality
       run: |
