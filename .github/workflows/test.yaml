@@ -49,11 +49,13 @@ jobs:
 
     - name: Run security checks
       run: |
-        # Run Bandit security checks
-        bandit -r . -ll -ii -x tests/
+        echo "Running Bandit security checks..."
+        # Run Bandit security checks with detailed output
+        bandit -r . -ll -ii -x tests/ -v
 
+        echo "Checking for known vulnerabilities..."
         # Check for known vulnerabilities in dependencies
-        safety check
+        safety check -v
 
     - name: Run tests with coverage
       env:
@@ -61,11 +63,13 @@ jobs:
         PYTHON_HASHSEED: "random"
         DISCORD_WEBHOOK_URL: "https://discord.com/api/webhooks/test"
       run: |
-        # Run tests with coverage
-        pytest tests/ --cov=. --cov-report=xml --cov-report=term-missing
+        echo "Running pytest with coverage..."
+        # Run tests with coverage and more verbose output
+        pytest tests/ -v --cov=. --cov-report=xml --cov-report=term-missing
 
-        # Verify minimum coverage
-        coverage report --fail-under=80
+        echo "Verifying coverage threshold..."
+        # Verify minimum coverage with detailed report
+        coverage report -m --fail-under=80
 
     - name: Upload coverage to Codecov
       uses: codecov/codecov-action@v4
@@ -75,22 +79,39 @@ jobs:
 
     - name: Verify file permissions
       run: |
-        # Check data directory permissions
-        if [ "$(stat -c %a data)" != "700" ]; then
-          echo "Data directory has incorrect permissions"
+        echo "Checking data directory permissions..."
+        # Show current permissions
+        ls -la data/
+        stat data/
+        DATA_PERMS=$(stat -c %a data)
+        echo "Data directory permissions: $DATA_PERMS (expected 700)"
+        if [ "$DATA_PERMS" != "700" ]; then
+          echo "❌ Data directory has incorrect permissions: $DATA_PERMS (expected 700)"
           exit 1
         fi
 
-        # Check log file permissions
+        echo "Checking log file permissions..."
         touch data/github_release_bot.log
-        if [ "$(stat -c %a data/github_release_bot.log)" != "600" ]; then
-          echo "Log file has incorrect permissions"
+        # Show current permissions
+        ls -la data/github_release_bot.log
+        stat data/github_release_bot.log
+        LOG_PERMS=$(stat -c %a data/github_release_bot.log)
+        echo "Log file permissions: $LOG_PERMS (expected 600)"
+        if [ "$LOG_PERMS" != "600" ]; then
+          echo "❌ Log file has incorrect permissions: $LOG_PERMS (expected 600)"
           exit 1
         fi
 
-        # Check version file permissions
+        echo "Checking version file permissions..."
         echo "{}" > data/last_version.json
-        if [ "$(stat -c %a data/last_version.json)" != "600" ]; then
-          echo "Version file has incorrect permissions"
+        # Show current permissions
+        ls -la data/last_version.json
+        stat data/last_version.json
+        VERSION_PERMS=$(stat -c %a data/last_version.json)
+        echo "Version file permissions: $VERSION_PERMS (expected 600)"
+        if [ "$VERSION_PERMS" != "600" ]; then
+          echo "❌ Version file has incorrect permissions: $VERSION_PERMS (expected 600)"
           exit 1
         fi
+
+        echo "✅ All file permissions are correct"
