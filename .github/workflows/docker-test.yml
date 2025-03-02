@@ -158,6 +158,19 @@ jobs:
         echo "✅ Test directories created with correct permissions"
 
         echo "🧪 Running tests with coverage..."
+        # First create data directory with correct permissions
+        sudo mkdir -p data
+        sudo chown root:10001 data
+        sudo chmod 750 data
+        # Create test files
+        sudo touch data/github_release_bot.log
+        sudo touch data/last_version.json
+        sudo chown 10001:10001 data/github_release_bot.log
+        sudo chown 10001:10001 data/last_version.json
+        sudo chmod 600 data/github_release_bot.log
+        sudo chmod 600 data/last_version.json
+        echo "{}" | sudo tee data/last_version.json > /dev/null
+
         docker run --rm \
           -v ${{ github.workspace }}/tests:/app/tests:ro \
           -v ${{ github.workspace }}/github_release.py:/app/github_release.py:ro \
@@ -170,6 +183,9 @@ jobs:
           --user crsbot \
           crs-bot:test \
           pytest tests/ --cov=. --cov-report=xml:/coverage/coverage.xml -v
+
+        # Ensure permissions are correct after tests
+        sudo chmod 750 data
 
     - name: Test container startup and functionality
       run: |
