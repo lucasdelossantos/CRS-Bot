@@ -265,6 +265,26 @@ jobs:
         echo "Starting container with volume..."
         docker compose up -d
 
+        # Add debugging for permissions and user context
+        echo "🔍 Debugging permissions and user context..."
+        echo "Container user context:"
+        docker compose exec -T crs-bot id
+
+        echo "Volume mount point permissions:"
+        docker compose exec -T crs-bot ls -la /app/data
+
+        echo "Log file details:"
+        docker compose exec -T crs-bot stat /app/data/github_release_bot.log || true
+
+        echo "Group memberships and permissions:"
+        docker compose exec -T crs-bot sh -c 'groups && getfacl /app/data/github_release_bot.log' || true
+
+        echo "Parent directory permissions:"
+        docker compose exec -T crs-bot ls -la /app
+
+        echo "Process context:"
+        docker compose exec -T crs-bot ps aux
+
         # Wait a moment for the container to mount volumes and check initial logs
         echo "Waiting for container to start and checking logs..."
         sleep 5

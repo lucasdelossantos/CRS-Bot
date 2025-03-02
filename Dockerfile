@@ -45,6 +45,7 @@ RUN apt-get update && \
         git \
         tini \
         ca-certificates \
+        acl \
         # Add security packages
         apparmor \
         libcap2-bin \
