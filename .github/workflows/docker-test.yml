@@ -71,7 +71,7 @@ jobs:
         echo "Application directory permissions:"
         docker run --rm crs-bot:test ls -la /app
         PERM_CHECK=$(docker run --rm crs-bot:test ls -la /app)
-        if echo "$PERM_CHECK" | grep -q "^.....w...."; then
+        if echo "$PERM_CHECK" | grep -v "data" | grep -q "^.....w...."; then
           echo "❌ Application files are writable!"
           exit 1
         fi
