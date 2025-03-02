@@ -10,6 +10,7 @@ jobs:
     permissions:
       contents: write
       pull-requests: write
+      checks: write
     steps:
     - name: Install GitHub CLI
       run: |
@@ -43,9 +44,25 @@ jobs:
         GH_TOKEN: ${{ secrets.PAT_TOKEN }}
       run: |
         # List all open PRs with dependency labels or from dependabot
-        gh pr list --json number,author,labels,title --jq '.[] | select((.author.login == "dependabot[bot]") or (.labels | map(.name) | contains(["dependencies"]))) | .number' | while read pr; do
-          if [ ! -z "$pr" ]; then
-            echo "Enabling auto-merge for PR #$pr"
-            gh pr merge "$pr" --auto --merge || true
+        gh pr list --json number,author,labels,title,statusCheckRollup --jq '.[] | select((.author.login == "dependabot[bot]") or (.labels | map(.name) | contains(["dependencies"])))' | while read -r pr_json; do
+          pr_number=$(echo "$pr_json" | jq -r '.number')
+          if [ ! -z "$pr_number" ]; then
+            echo "Processing PR #$pr_number"
+            
+            # Check if there are any failed checks
+            failed_checks=$(echo "$pr_json" | jq -r '.statusCheckRollup[] | select(.conclusion == "failure" or .status == "in_progress") | .context' 2>/dev/null)
+            
+            if [ ! -z "$failed_checks" ]; then
+              echo "Found failed or in-progress checks for PR #$pr_number, re-running them..."
+              gh pr check-run-list "$pr_number" --json databaseId | jq -r '.[].databaseId' | while read -r run_id; do
+                gh api -X POST "/repos/${{ github.repository }}/check-runs/$run_id/rerequest" || true
+              done
+              
+              echo "Waiting for checks to complete..."
+              sleep 60  # Give checks some time to run
+            fi
+            
+            echo "Enabling auto-merge for PR #$pr_number"
+            gh pr merge "$pr_number" --auto --merge || true
           fi
         done
