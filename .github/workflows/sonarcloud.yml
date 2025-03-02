@@ -50,5 +50,9 @@ jobs:
           -Dsonar.host.url=https://sonarcloud.io \
           -Dsonar.organization=lucasdelossantos \
           -Dsonar.projectKey=lucasdelossantos_CRS-Bot \
+          -Dsonar.python.version=3.9,3.10,3.11,3.12 \
+          -Dsonar.python.coverage.reportPaths=coverage.xml \
+          -Dsonar.sources=. \
+          -Dsonar.exclusions=tests/**,**/*.pyc,**/__pycache__/**,docs/**,*.md \
           -Dsonar.scm.provider=git \
           -Dsonar.qualitygate.wait=true
