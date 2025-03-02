@@ -137,8 +137,8 @@ jobs:
         sudo chmod 700 tests/pytest_cache
         # Create data directory and files for tests
         sudo mkdir -p data
-        sudo chown 10001:10001 data
-        sudo chmod 700 data
+        sudo chown root:10001 data
+        sudo chmod 550 data
         # Create and set up log file
         sudo touch data/github_release_bot.log
         sudo chown 10001:10001 data/github_release_bot.log
@@ -172,9 +172,17 @@ jobs:
     - name: Test container startup and functionality
       run: |
         echo "📁 Creating data directory..."
-        mkdir -p data
-        sudo chmod 550 data
+        sudo mkdir -p data
         sudo chown root:10001 data
+        sudo chmod 550 data
+        # Create and set up log file
+        sudo touch data/github_release_bot.log
+        sudo chown 10001:10001 data/github_release_bot.log
+        sudo chmod 600 data/github_release_bot.log
+        # Create and set up version file
+        echo '{}' | sudo tee data/last_version.json > /dev/null
+        sudo chown 10001:10001 data/last_version.json
+        sudo chmod 600 data/last_version.json
         echo "✅ Data directory created with correct permissions"
 
         echo "📝 Creating test environment file..."
@@ -189,11 +197,23 @@ jobs:
         docker compose up -d
 
         echo "⏳ Waiting for container health check..."
-        timeout 30s bash -c 'while ! docker compose ps | grep -q "healthy"; do 
-          echo "Waiting for container to be healthy..."; 
-          docker compose ps;
-          sleep 1; 
-        done'
+        HEALTHY=0
+        for i in {1..30}; do
+          if docker compose ps | grep -q "healthy"; then
+            HEALTHY=1
+            break
+          fi
+          echo "Waiting for container to be healthy..."
+          docker compose ps
+          sleep 1
+        done
+
+        if [ $HEALTHY -eq 0 ]; then
+          echo "❌ Container failed to become healthy. Container logs:"
+          docker compose logs
+          docker compose ps
+          exit 1
+        fi
 
         echo "🔍 Verifying container state..."
         CONTAINER_INFO=$(docker compose ps -q crs-bot | xargs docker inspect -f '{{.State.Status}} {{.State.Health.Status}}')
