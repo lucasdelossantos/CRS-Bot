@@ -197,18 +197,26 @@ jobs:
         echo "✅ Environment file created"
 
         echo "🚀 Starting container..."
+        # Debug source directory
+        echo "Source directory contents:"
+        ls -la temp_data
+
         # Initialize the named volume with our temporary directory
         docker run --rm \
           -v $(pwd)/temp_data:/source:ro \
           -v data:/target \
           --user root \
           alpine sh -c 'set -x && \
+          echo "Source directory contents:" && \
+          ls -la /source && \
           rm -rf /target/* && \
           mkdir -p /target && \
-          ls -la /source && \
+          echo "Copying files..." && \
           cp -av /source/github_release_bot.log /target/ && \
           cp -av /source/last_version.json /target/ && \
+          echo "Target directory after copy:" && \
           ls -la /target && \
+          echo "Setting ownership and permissions..." && \
           chown -R root:10001 /target && \
           chmod 550 /target && \
           chown 10001:10001 /target/github_release_bot.log && \
@@ -228,7 +236,13 @@ jobs:
 
         # Verify permissions after container start
         echo "🔍 Verifying container permissions..."
-        docker compose exec -T crs-bot sh -c 'set -x && ls -la /app/data && echo "Log file details:" && stat /app/data/github_release_bot.log && echo "Version file details:" && stat /app/data/last_version.json'
+        docker compose exec -T crs-bot sh -c 'set -x && \
+          echo "Data directory contents:" && \
+          ls -la /app/data && \
+          echo "Log file details:" && \
+          stat /app/data/github_release_bot.log && \
+          echo "Version file details:" && \
+          stat /app/data/last_version.json'
 
         # Clean up temporary directory
         sudo rm -rf temp_data
