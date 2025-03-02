@@ -136,8 +136,9 @@ jobs:
         sudo chown 10001:10001 tests/pytest_cache
         sudo chmod 700 tests/pytest_cache
         # Set permissions for source files
-        sudo chown root:10001 github_release.py setup.py
+        sudo chown root:10001 github_release.py setup.py config.yaml
         sudo chmod 554 github_release.py setup.py
+        sudo chmod 440 config.yaml
         echo "✅ Test directories created with correct permissions"
 
         echo "🧪 Running tests with coverage..."
@@ -145,6 +146,7 @@ jobs:
           -v ${{ github.workspace }}/tests:/app/tests:ro \
           -v ${{ github.workspace }}/github_release.py:/app/github_release.py:ro \
           -v ${{ github.workspace }}/setup.py:/app/setup.py:ro \
+          -v ${{ github.workspace }}/config.yaml:/app/config.yaml:ro \
           -v ${{ github.workspace }}/tests/coverage:/coverage:rw \
           -v ${{ github.workspace }}/tests/pytest_cache:/app/.pytest_cache:rw \
           -e COVERAGE_FILE=/coverage/.coverage \
