@@ -92,11 +92,12 @@ ENV PYTHONUNBUFFERED=1 \
 
 # Create data directory and set permissions
 RUN mkdir -p /app/data && \
-    # Set proper ownership
-    chown -R crsbot:crsbot /app && \
+    # Set proper ownership and permissions
+    chown root:crsbot /app && \
+    chown root:crsbot /app/data && \
     # Set restrictive permissions
-    chmod 700 /app && \
-    chmod 700 /app/data && \
+    chmod 550 /app && \
+    chmod 550 /app/data && \
     # Add additional capability restrictions
     setcap cap_net_bind_service=+ep /usr/local/bin/python3.9 && \
     # Remove unnecessary setuid/setgid

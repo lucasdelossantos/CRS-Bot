@@ -86,9 +86,9 @@ jobs:
         echo "Data directory details:"
         docker run --rm crs-bot:test ls -la /app/data
         DATA_PERM=$(docker run --rm crs-bot:test ls -la /app/data)
-        if ! echo "$DATA_PERM" | grep -q "^dr--r-----.*root.*crsbot"; then
+        if ! echo "$DATA_PERM" | grep -q "^dr-xr-x---.*root.*crsbot"; then
           echo "❌ Data directory has incorrect permissions or ownership"
-          echo "Expected: dr--r----- root crsbot"
+          echo "Expected: dr-xr-x--- root crsbot"
           echo "Got: $DATA_PERM"
           exit 1
         fi
@@ -118,7 +118,7 @@ jobs:
       run: |
         echo "📁 Creating test directories..."
         mkdir -p tests/data
-        chmod 440 tests/data
+        chmod 550 tests/data
         chown root:10001 tests/data
         echo "✅ Test directories created with correct permissions"
 
@@ -133,7 +133,7 @@ jobs:
       run: |
         echo "📁 Creating data directory..."
         mkdir -p data
-        chmod 440 data
+        chmod 550 data
         chown root:10001 data
         echo "✅ Data directory created with correct permissions"
 
@@ -170,9 +170,9 @@ jobs:
         echo "Volume permissions:"
         VOLUME_PERMS=$(docker compose exec -T crs-bot ls -la /app/data)
         echo "$VOLUME_PERMS"
-        if ! echo "$VOLUME_PERMS" | grep -q "^dr--r-----.*root.*crsbot"; then
+        if ! echo "$VOLUME_PERMS" | grep -q "^dr-xr-x---.*root.*crsbot"; then
           echo "❌ Data directory has incorrect permissions or ownership"
-          echo "Expected: dr--r----- root crsbot"
+          echo "Expected: dr-xr-x--- root crsbot"
           echo "Got: $VOLUME_PERMS"
           exit 1
         fi
