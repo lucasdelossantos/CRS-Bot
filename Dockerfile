@@ -96,7 +96,6 @@ RUN mkdir -p /app/data && \
     # Set restrictive permissions
     chmod 700 /app && \
     chmod 700 /app/data && \
-    chmod 400 /app/github_release.py /app/config.yaml /app/setup.py && \
     # Add additional capability restrictions
     setcap cap_net_bind_service=+ep /usr/local/bin/python3.9 && \
     # Remove unnecessary setuid/setgid
