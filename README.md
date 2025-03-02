@@ -1,6 +1,6 @@
 # CRS-Bot
 
-[![GitHub Actions Status](https://github.com/lucasdelossantos/CRS-Bot/workflows/Check%20Release/badge.svg)](https://github.com/lucasdelossantos/CRS-Bot/actions)
+[![GitHub Actions Status](https://github.com/lucasdelossantos/CRS-Bot/workflows/Tests/badge.svg)](https://github.com/lucasdelossantos/CRS-Bot/actions/workflows/test.yaml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Python 3.x](https://img.shields.io/badge/python-3.x-blue.svg)](https://www.python.org/downloads/)
 [![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=lucasdelossantos_CRS-Bot&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=lucasdelossantos_CRS-Bot)
