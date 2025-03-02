@@ -5,18 +5,19 @@ services:
     build: .
     volumes:
       - .:/app:ro  # Mount current directory read-only for development
-      - data:/app/data  # Persistent volume for last_version.json
+      - data:/app/data  # Persistent volume for data
     environment:
       - DISCORD_WEBHOOK_URL=${DISCORD_WEBHOOK_URL}  # From .env file or environment
       - PYTHONUNBUFFERED=1
     restart: unless-stopped
     user: crsbot
     healthcheck:
-      test: ["CMD", "python", "-c", "import requests; requests.get('https://api.github.com/zen')"]
+      test: ["CMD", "python", "-c", "import os; assert os.path.exists('/app/data/github_release_bot.log') and os.access('/app/data/github_release_bot.log', os.W_OK), 'Log file not accessible'"]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 5s
 
 volumes:
-  data:  # Named volume for persistent data 
+  data:
+    name: data 
