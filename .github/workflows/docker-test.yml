@@ -199,93 +199,15 @@ jobs:
         echo "🚀 Starting container..."
         # Create Docker volume explicitly
         echo "Creating Docker volume..."
-        docker volume create data
-        docker volume inspect data
+        docker volume create \
+          --driver local \
+          --opt type=none \
+          --opt o=bind \
+          --opt device=$(pwd)/temp_data \
+          data
 
-        # Debug source directory
-        echo "Source directory contents before Docker:"
-        sudo ls -la temp_data
-        sudo stat temp_data/github_release_bot.log
-        sudo stat temp_data/last_version.json
-
-        # Initialize the named volume with our temporary directory
-        echo "Initializing volume with data..."
-        docker run --rm \
-          -v "$(pwd)/temp_data:/source:ro" \
-          -v "data:/target" \
-          --user root \
-          alpine sh -c 'set -x && \
-          echo "Source directory contents:" && \
-          ls -la /source && \
-          echo "Source file details:" && \
-          stat /source/github_release_bot.log && \
-          stat /source/last_version.json && \
-          echo "Cleaning target..." && \
-          rm -rf /target/* && \
-          mkdir -p /target && \
-          echo "Target directory created:" && \
-          ls -la /target && \
-          echo "Copying files..." && \
-          cp -av /source/github_release_bot.log /target/ && \
-          cp -av /source/last_version.json /target/ && \
-          echo "Target directory after copy:" && \
-          ls -la /target && \
-          echo "Setting ownership and permissions..." && \
-          # Use numeric IDs to ensure consistency
-          chown -R 0:10001 /target && \
-          echo "Initial directory permissions:" && \
-          ls -la /target && \
-          chmod 0550 /target && \
-          echo "After chmod 0550:" && \
-          ls -la /target && \
-          chown 10001:10001 /target/github_release_bot.log && \
-          chown 10001:10001 /target/last_version.json && \
-          chmod 0600 /target/github_release_bot.log && \
-          chmod 0600 /target/last_version.json && \
-          # Now set final directory permissions
-          chmod 0750 /target && \
-          echo "Final volume contents and permissions:" && \
-          ls -la /target && \
-          echo "Log file details:" && \
-          stat /target/github_release_bot.log && \
-          echo "Version file details:" && \
-          stat /target/last_version.json'
-
-        # Verify volume contents and permissions after initialization
-        echo "Verifying volume contents and permissions after initialization..."
-        # First verify as root to ensure everything is set up correctly
-        docker run --rm -v data:/target --user root alpine sh -c 'set -x && \
-          echo "Directory permissions (as root):" && \
-          ls -ld /target && \
-          echo "Directory contents (as root):" && \
-          ls -la /target && \
-          echo "File details (as root):" && \
-          stat /target/github_release_bot.log && \
-          stat /target/last_version.json'
-
-        # Then verify as crsbot user to ensure they can access what they need
-        docker run --rm -v data:/target --user 10001 alpine sh -c 'set -x && \
-          echo "Testing file access as crsbot..." && \
-          echo "Current user:" && \
-          id && \
-          echo "Attempting write..." && \
-          rm -f /target/github_release_bot.log && \
-          touch /target/github_release_bot.log && \
-          echo "test" > /target/github_release_bot.log && \
-          cat /target/github_release_bot.log && \
-          echo "File permissions:" && \
-          ls -l /target/github_release_bot.log && \
-          ls -l /target/last_version.json'
-
-        # Start the container with explicit volume mount
-        echo "Stopping any existing containers..."
-        docker compose down
-
-        echo "Starting container with volume..."
-        docker compose up -d
-
-        # Fix permissions after container start using a separate container
-        echo "Fixing volume permissions..."
+        # Initialize the volume with correct permissions
+        echo "Setting up volume permissions..."
         docker run --rm \
           -v data:/target \
           --user root \
@@ -296,9 +218,15 @@ jobs:
           chown 10001:10001 /target/last_version.json && \
           chmod 0600 /target/github_release_bot.log && \
           chmod 0600 /target/last_version.json && \
-          # Verify final permissions
           echo "Final permissions:" && \
           ls -la /target'
+
+        # Start the container with explicit volume mount
+        echo "Stopping any existing containers..."
+        docker compose down
+
+        echo "Starting container with volume..."
+        docker compose up -d
 
         # Wait a moment for the container to mount volumes and check initial logs
         echo "Waiting for container to start and checking logs..."

@@ -5,7 +5,11 @@ services:
     build: .
     volumes:
       - .:/app:ro  # Mount current directory read-only for development
-      - data:/app/data  # Persistent volume for last_version.json
+      - type: volume
+        source: data
+        target: /app/data
+        volume:
+          nocopy: true  # Don't copy data from container
     environment:
       - DISCORD_WEBHOOK_URL=${DISCORD_WEBHOOK_URL}  # From .env file or environment
       - PYTHONUNBUFFERED=1
@@ -19,4 +23,9 @@ services:
       start_period: 5s
 
 volumes:
-  data:  # Named volume for persistent data 
+  data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /app/data 
