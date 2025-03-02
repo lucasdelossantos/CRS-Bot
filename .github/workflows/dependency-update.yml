@@ -12,15 +12,6 @@ jobs:
     steps:
     - uses: actions/checkout@v4
 
-    - name: Install GitHub CLI
-      run: |
-        type -p curl >/dev/null || (sudo apt update && sudo apt install curl -y)
-        curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | sudo dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg \
-        && sudo chmod go+r /usr/share/keyrings/githubcli-archive-keyring.gpg \
-        && echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | sudo tee /etc/apt/sources.list.d/github-cli.list > /dev/null \
-        && sudo apt update \
-        && sudo apt install gh -y
-
     - name: Update requirements.txt
       run: |
         echo "requests>=2.31.0" > requirements.txt.tmp
@@ -28,17 +19,13 @@ jobs:
         mv requirements.txt.tmp requirements.txt
 
     - name: Create Pull Request
-      env:
-        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      run: |
-        git config --global user.name "github-actions[bot]"
-        git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
-        git checkout -b "deps/update-requests"
-        git add requirements.txt
-        git commit -m "build(deps): update requests to latest version"
-        git push origin deps/update-requests
-        gh pr create \
-          --title "build(deps): update requests to latest version" \
-          --body "Update requests package to latest version" \
-          --label "dependencies" \
-          --label "python" 
+      uses: peter-evans/create-pull-request@v6
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+        commit-message: "build(deps): update requests to latest version"
+        title: "build(deps): update requests to latest version"
+        body: "Update requests package to latest version"
+        branch: "deps/update-requests"
+        labels: |
+          dependencies
+          python 
