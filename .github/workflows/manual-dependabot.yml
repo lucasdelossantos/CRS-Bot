@@ -31,13 +31,18 @@ jobs:
       env:
         GH_TOKEN: ${{ secrets.PAT_TOKEN }}
       run: |
-        # Close all open dependency-related PRs
-        gh pr list --json number,author,labels --jq '.[] | select((.author.login == "dependabot[bot]") or (.labels | map(.name) | contains(["dependencies"]))) | .number' | while read -r pr; do
-          if [ ! -z "$pr" ]; then
+        echo "Looking for existing dependency PRs..."
+        prs=$(gh pr list --json number,author,labels,title --jq '.[] | select((.author.login == "dependabot[bot]") or (.labels | map(.name) | contains(["dependencies"]))) | .number')
+        if [ ! -z "$prs" ]; then
+          echo "Found PRs to close: $prs"
+          echo "$prs" | while read -r pr; do
             echo "Closing PR #$pr"
             gh pr close "$pr" --comment "Closing to recreate with latest changes"
-          fi
-        done
+            sleep 2
+          done
+        else
+          echo "No existing dependency PRs found"
+        fi
 
     - name: Create fresh dependency PR
       env:
@@ -50,31 +55,54 @@ jobs:
         # Create a new branch for dependencies
         git checkout -b "deps/update-all"
 
-        # Update requirements.txt with latest versions
-        echo "requests>=2.31.0" > requirements.txt.tmp
-        tail -n +2 requirements.txt >> requirements.txt.tmp
-        mv requirements.txt.tmp requirements.txt
+        # Update dependencies in requirements.txt
+        if [ -f "requirements.txt" ]; then
+          echo "Updating requirements.txt..."
+          # Create a temporary file with updated versions
+          {
+            echo "requests>=2.31.0"
+            echo "pytest>=7.4.3"
+            echo "pytest-cov>=4.1.0"
+            echo "black>=23.11.0"
+            echo "flake8>=6.1.0"
+            echo "isort>=5.12.0"
+            echo "mypy>=1.7.0"
+          } > requirements.txt.new
+          
+          # Check if there are actual changes
+          if ! cmp -s requirements.txt requirements.txt.new; then
+            mv requirements.txt.new requirements.txt
+            echo "Changes detected in requirements.txt"
+            
+            # Commit and push changes
+            git add requirements.txt
+            git commit -m "build(deps): update all dependencies to latest versions"
+            git push -f origin deps/update-all
 
-        # Commit and push changes
-        git add requirements.txt
-        git commit -m "build(deps): update all dependencies to latest versions"
-        git push -f origin deps/update-all
+            # Create PR
+            echo "Creating PR..."
+            gh pr create \
+              --title "build(deps): update all dependencies" \
+              --body "Update all dependencies to their latest versions" \
+              --label "dependencies" \
+              --label "python" \
+              --base main
 
-        # Create PR
-        gh pr create \
-          --title "build(deps): update all dependencies" \
-          --body "Update all dependencies to their latest versions" \
-          --label "dependencies" \
-          --label "python" \
-          --base main
+            # Wait for checks to complete
+            echo "Waiting for checks to complete..."
+            sleep 180
 
-        # Wait for checks to complete
-        echo "Waiting for checks to complete..."
-        sleep 180
-
-        # Enable auto-merge
-        pr_number=$(gh pr list --json number,headRefName --jq '.[] | select(.headRefName == "deps/update-all") | .number')
-        if [ ! -z "$pr_number" ]; then
-          echo "Enabling auto-merge for PR #$pr_number"
-          gh pr merge "$pr_number" --auto --merge || true
+            # Enable auto-merge
+            pr_number=$(gh pr list --json number,headRefName --jq '.[] | select(.headRefName == "deps/update-all") | .number')
+            if [ ! -z "$pr_number" ]; then
+              echo "Enabling auto-merge for PR #$pr_number"
+              gh pr merge "$pr_number" --auto --merge || true
+            fi
+          else
+            echo "No changes needed in requirements.txt"
+            rm requirements.txt.new
+          fi
+        else
+          echo "requirements.txt not found"
+          exit 1
         fi
