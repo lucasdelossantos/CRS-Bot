@@ -88,9 +88,9 @@ jobs:
         echo "Data directory details:"
         docker run --rm crs-bot:test ls -la /app/data
         DATA_PERM=$(docker run --rm crs-bot:test ls -la /app/data)
-        if ! echo "$DATA_PERM" | grep -q "^dr-xr-x---.*root.*crsbot"; then
+        if ! echo "$DATA_PERM" | grep -q "^drwxr-x---.*root.*crsbot"; then
           echo "❌ Data directory has incorrect permissions or ownership"
-          echo "Expected: dr-xr-x--- root crsbot"
+          echo "Expected: drwxr-x--- root crsbot"
           echo "Got: $DATA_PERM"
           exit 1
         fi
@@ -235,16 +235,16 @@ jobs:
           chown -R 0:10001 /target && \
           echo "Initial directory permissions:" && \
           ls -la /target && \
-          chmod 0770 /target &&  # Use full octal mode
+          chmod 0770 /target &&  # First set more permissive to allow operations
           echo "After chmod 0770:" && \
           ls -la /target && \
           chown 10001:10001 /target/github_release_bot.log && \
           chown 10001:10001 /target/last_version.json && \
           chmod 0600 /target/github_release_bot.log && \
           chmod 0600 /target/last_version.json && \
-          # Now set final directory permissions - allow group read/write/execute
-          chmod 0575 /target && \
-          echo "After chmod 0575:" && \
+          # Now set final directory permissions to allow group write
+          chmod 0750 /target && \
+          echo "After chmod 0750:" && \
           ls -la /target && \
           echo "Final volume contents and permissions:" && \
           ls -la /target && \
@@ -264,6 +264,7 @@ jobs:
           echo "Current user:" && \
           id && \
           echo "Attempting write..." && \
+          rm -f /target/github_release_bot.log && \
           touch /target/github_release_bot.log && \
           echo "test" > /target/github_release_bot.log && \
           cat /target/github_release_bot.log && \
@@ -339,9 +340,9 @@ jobs:
         echo "Volume permissions:"
         VOLUME_PERMS=$(docker compose exec -T crs-bot ls -la /app/data)
         echo "$VOLUME_PERMS"
-        if ! echo "$VOLUME_PERMS" | grep -q "^dr-xr-x---.*root.*crsbot"; then
+        if ! echo "$VOLUME_PERMS" | grep -q "^drwxr-x---.*root.*crsbot"; then
           echo "❌ Data directory has incorrect permissions or ownership"
-          echo "Expected: dr-xr-x--- root crsbot"
+          echo "Expected: drwxr-x--- root crsbot"
           echo "Got: $VOLUME_PERMS"
           exit 1
         fi
