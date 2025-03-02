@@ -258,6 +258,44 @@ jobs:
           echo "Version file details:" && \
           stat /target/last_version.json'
 
+        echo "🔍 Examining volume state after initialization..."
+        docker run --rm \
+          -v data:/debug \
+          alpine sh -c '
+          echo "=== Volume State After Init ===" && \
+          echo "Installing tree..." && \
+          apk add --no-cache tree && \
+          echo "\nFull directory tree:" && \
+          tree -pug /debug && \
+          echo "\nDetailed permissions:" && \
+          ls -la /debug && \
+          ls -la /debug/* && \
+          echo "\nFile details:" && \
+          stat /debug/* && \
+          echo "\nOwnership and group info:" && \
+          id'
+
+        echo "🔍 Examining early container state..."
+        docker run --rm \
+          --entrypoint sh \
+          -v data:/app/data \
+          crs-bot:test \
+          -c '
+          echo "=== Container Early State ===" && \
+          echo "Container user context:" && \
+          id && \
+          groups && \
+          echo "\nMount points:" && \
+          mount | grep app/data && \
+          echo "\nDetailed data directory state:" && \
+          ls -la /app/data && \
+          ls -la /app/data/* && \
+          echo "\nFile details:" && \
+          stat /app/data/* && \
+          echo "\nParent directory context:" && \
+          ls -la /app && \
+          stat /app/data'
+
         # Start the container with explicit volume mount
         echo "Stopping any existing containers..."
         docker compose down
