@@ -14,20 +14,24 @@ jobs:
     steps:
     - name: Install GitHub CLI
       run: |
+        echo "::group::Installing GitHub CLI"
         type -p curl >/dev/null || (sudo apt update && sudo apt install curl -y)
         curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | sudo dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg \
         && sudo chmod go+r /usr/share/keyrings/githubcli-archive-keyring.gpg \
         && echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | sudo tee /etc/apt/sources.list.d/github-cli.list > /dev/null \
         && sudo apt update \
         && sudo apt install gh -y
+        echo "::endgroup::"
 
     - name: Configure auto-delete merged branches
       env:
         GH_TOKEN: ${{ secrets.PAT_TOKEN }}
       run: |
-        # Enable auto-delete head branches in repository settings
+        echo "::group::Configuring auto-delete merged branches"
+        echo "Enabling auto-delete head branches in repository settings..."
         gh api -X PATCH /repos/${{ github.repository }} \
           -f delete_branch_on_merge=true
+        echo "::endgroup::"
 
     - name: Checkout repository
       uses: actions/checkout@v4
@@ -42,13 +46,16 @@ jobs:
 
     - name: Install dependencies
       run: |
+        echo "::group::Installing Python dependencies"
         python -m pip install --upgrade pip
         pip install -r requirements.txt
+        echo "::endgroup::"
 
     - name: Close existing PRs
       env:
         GH_TOKEN: ${{ secrets.PAT_TOKEN }}
       run: |
+        echo "::group::Closing existing dependency PRs"
         echo "Looking for existing dependency PRs..."
         prs=$(gh pr list --json number,author,labels,title --jq '.[] | select((.author.login == "dependabot[bot]") or (.labels | map(.name) | contains(["dependencies"]))) | .number')
         if [ ! -z "$prs" ]; then
@@ -61,46 +68,63 @@ jobs:
         else
           echo "No existing dependency PRs found"
         fi
+        echo "::endgroup::"
 
     - name: Update Python Dependencies
       env:
         GH_TOKEN: ${{ secrets.PAT_TOKEN }}
       run: |
+        echo "::group::Updating Python dependencies"
         # Configure git
+        echo "Configuring git..."
         git config --global user.name "github-actions[bot]"
         git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
         # Create required labels if they don't exist
-        echo "Creating required labels if they don't exist..."
+        echo "Creating required labels..."
         gh label create "python" --color "3572A5" --description "Python-related changes" || true
         gh label create "dependencies" --color "0366D6" --description "Updates to dependencies" || true
 
         # Create a new branch for Python dependencies
+        echo "Creating new branch for Python dependencies..."
         git checkout -b "deps/update-python"
 
         # Update dependencies in requirements.txt
         if [ -f "requirements.txt" ]; then
-          echo "Updating requirements.txt..."
+          echo "Found requirements.txt, checking for updates..."
+          # Get latest versions using pip index
+          echo "Fetching latest package versions..."
+          latest_black=$(pip index versions black | head -n1 | cut -d'(' -f2 | cut -d')' -f1)
+          latest_pytest_mock=$(pip index versions pytest-mock | head -n1 | cut -d'(' -f2 | cut -d')' -f1)
+          echo "Latest versions found:"
+          echo "black: $latest_black"
+          echo "pytest-mock: $latest_pytest_mock"
+
           # Create a temporary file with updated versions
+          echo "Creating updated requirements.txt..."
           {
             echo "requests>=2.31.0"
             echo "pytest>=7.4.3"
             echo "pytest-cov>=4.1.0"
-            echo "black>=23.11.0"
+            echo "black>=$latest_black"
             echo "flake8>=6.1.0"
             echo "isort>=5.12.0"
             echo "mypy>=1.7.0"
             echo "pyyaml>=6.0.1"
             echo "responses>=0.25.0"
-            echo "pytest-mock>=3.12.0"
+            echo "pytest-mock>=$latest_pytest_mock"
           } > requirements.txt.new
           
-          # Check if there are actual changes
+          echo "Comparing old and new requirements.txt..."
           if ! cmp -s requirements.txt requirements.txt.new; then
-            mv requirements.txt.new requirements.txt
             echo "Changes detected in requirements.txt"
+            echo "Differences:"
+            diff requirements.txt requirements.txt.new || true
+            
+            mv requirements.txt.new requirements.txt
             
             # Commit and push changes
+            echo "Committing and pushing changes..."
             git add requirements.txt
             git commit -m "build(deps): update python dependencies to latest versions"
             git push -f origin deps/update-python
@@ -115,52 +139,61 @@ jobs:
               --base main
 
             # Enable auto-merge and monitor checks
+            echo "Looking for PR number..."
             pr_number=$(gh pr list --json number,headRefName --jq '.[] | select(.headRefName == "deps/update-python") | .number')
             if [ ! -z "$pr_number" ]; then
-              echo "Enabling auto-merge for PR #$pr_number"
+              echo "Found PR #$pr_number"
+              echo "Enabling auto-merge..."
               gh pr merge "$pr_number" --auto --merge || true
               
               # Wait for checks and monitor status
               echo "Waiting for checks to complete..."
               for i in {1..30}; do
+                echo "Checking PR status (attempt $i/30)..."
                 check_status=$(gh pr view "$pr_number" --json statusCheckRollup --jq '.statusCheckRollup[] | select(.name != null) | .conclusion')
+                echo "Current check status: $check_status"
                 if echo "$check_status" | grep -q "failure\|cancelled"; then
-                  # Checks failed - add label and comment
+                  echo "❌ Checks have failed"
                   gh pr edit "$pr_number" --add-label "checks-failed"
                   gh pr comment "$pr_number" --body "⚠️ Checks have failed for this PR. Please review the failures and update accordingly."
                   exit 1
                 elif echo "$check_status" | grep -q "success"; then
-                  echo "All checks passed successfully!"
+                  echo "✅ All checks passed successfully!"
                   break
                 fi
-                echo "Checks still running... (attempt $i/30)"
+                echo "Checks still running... waiting 10 seconds"
                 sleep 10
               done
+            else
+              echo "❌ Could not find PR number"
             fi
           else
             echo "No changes needed in requirements.txt"
             rm requirements.txt.new
           fi
         else
-          echo "requirements.txt not found"
+          echo "❌ requirements.txt not found"
         fi
+        echo "::endgroup::"
 
     - name: Update Workflow Actions
       env:
         GH_TOKEN: ${{ secrets.PAT_TOKEN }}
       run: |
+        echo "::group::Updating GitHub Actions"
         # Create a new branch for workflow updates
+        echo "Creating new branch for workflow updates..."
         git checkout main
         git checkout -b "deps/update-actions"
 
         # Create required labels if they don't exist
-        echo "Creating required labels if they don't exist..."
+        echo "Creating required labels..."
         gh label create "github_actions" --color "2088FF" --description "Updates to GitHub Actions versions" || true
         gh label create "dependencies" --color "0366D6" --description "Updates to dependencies" || true
         gh label create "checks-failed" --color "d73a4a" --description "CI checks have failed" || true
 
         # Update workflow files
-        echo "Updating workflow action versions..."
+        echo "Checking for workflow updates..."
 
         # Define the latest versions
         checkout_version="v4"
@@ -170,6 +203,7 @@ jobs:
         changes_made=false
 
         # Update all workflow files
+        echo "Processing workflow files..."
         for file in .github/workflows/*.yml .github/workflows/*.yaml; do
           if [ -f "$file" ]; then
             echo "Processing $file..."
@@ -195,9 +229,11 @@ jobs:
           echo "Changes detected in workflow files"
           
           # Show the changes for debugging
+          echo "Changes made:"
           git diff
           
           # Commit and push changes
+          echo "Committing and pushing changes..."
           git add .github/workflows/
           git commit -m "ci(deps): update GitHub Actions to latest versions"
           git push -f origin deps/update-actions
@@ -217,36 +253,41 @@ jobs:
             if [ ! -z "$existing_pr" ]; then
               echo "PR already exists with number #$existing_pr"
             else
-              echo "Failed to create PR and no existing PR found"
+              echo "❌ Failed to create PR and no existing PR found"
               exit 1
             fi
           fi
 
           # Enable auto-merge and monitor checks
+          echo "Looking for PR number..."
           pr_number=$(gh pr list --json number,headRefName --jq '.[] | select(.headRefName == "deps/update-actions") | .number')
           if [ ! -z "$pr_number" ]; then
-            echo "Enabling auto-merge for PR #$pr_number"
+            echo "Found PR #$pr_number"
+            echo "Enabling auto-merge..."
             gh pr merge "$pr_number" --auto --merge || true
             
             # Wait for checks and monitor status
             echo "Waiting for checks to complete..."
             for i in {1..30}; do
+              echo "Checking PR status (attempt $i/30)..."
               check_status=$(gh pr view "$pr_number" --json statusCheckRollup --jq '.statusCheckRollup[] | select(.name != null) | .conclusion')
+              echo "Current check status: $check_status"
               if echo "$check_status" | grep -q "failure\|cancelled"; then
-                # Checks failed - add label and comment
+                echo "❌ Checks have failed"
                 gh pr edit "$pr_number" --add-label "checks-failed"
                 gh pr comment "$pr_number" --body "⚠️ Checks have failed for this PR. Please review the failures and update accordingly."
                 exit 1
               elif echo "$check_status" | grep -q "success"; then
-                echo "All checks passed successfully!"
+                echo "✅ All checks passed successfully!"
                 break
               fi
-              echo "Checks still running... (attempt $i/30)"
+              echo "Checks still running... waiting 10 seconds"
               sleep 10
             done
           else
-            echo "Could not find PR number for auto-merge"
+            echo "❌ Could not find PR number"
           fi
         else
           echo "No workflow updates needed"
         fi
+        echo "::endgroup::"
