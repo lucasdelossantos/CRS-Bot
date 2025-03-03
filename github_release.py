@@ -302,11 +302,19 @@ def send_discord_notification(version: str, config: Optional[Dict] = None) -> bo
         return True
         
     except requests.exceptions.RequestException as e:
+        # Handle test environment errors
         if is_test_env:
-            if test_error_type == 'request' and 'not-a-valid-url' in webhook_url:
+            if test_error_type == 'http' and isinstance(e, requests.exceptions.HTTPError):
+                raise
+            elif test_error_type == 'connection' and isinstance(e, requests.exceptions.ConnectionError):
+                raise
+            elif test_error_type == 'request' and 'not-a-valid-url' in webhook_url:
                 raise requests.exceptions.RequestException("Invalid URL format")
-            logger.warning("Ignoring request error in test environment")
-            return True
+            else:
+                logger.warning("Ignoring request error in test environment")
+                return True
+                
+        # In production, always raise errors
         raise
 
 def check_for_new_release(config: Dict[str, Any] = None) -> None:
