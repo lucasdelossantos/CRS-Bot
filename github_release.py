@@ -277,30 +277,15 @@ def send_discord_notification(version: str, config: Optional[Dict[str, Any]] = N
     
     try:
         response = requests.post(webhook_url, json=message)
-        if response.status_code == 429:
-            logger.warning("Rate limited by Discord API")
-            return False
         response.raise_for_status()
         return True
-    except requests.exceptions.HTTPError as e:
-        logger.error(f"HTTP error sending Discord message: {str(e)}")
-        if is_test_env and e.response.status_code == 405:
-            logger.warning("Ignoring expected 405 error from test webhook")
-            return True
-        raise
-    except requests.exceptions.ConnectionError as e:
-        logger.error(f"Connection error sending Discord message: {str(e)}")
-        # For invalid URLs or unregistered mocks, convert to RequestException
-        if not webhook_url.startswith('https://discord.com/api/webhooks/') or 'does not match any registered mock' in str(e):
-            raise requests.exceptions.RequestException(f"Invalid webhook URL or unregistered mock: {webhook_url}")
-        # Only ignore connection errors in test environment for valid webhook URLs
-        if is_test_env:
-            logger.warning("Ignoring connection error in test environment")
-            return False
-        raise
     except requests.exceptions.RequestException as e:
-        logger.error(f"Request error sending Discord message: {str(e)}")
-        # Only ignore request errors in test environment for valid webhook URLs
+        # For invalid URLs or network errors, always raise RequestException
+        if not webhook_url.startswith('https://discord.com/api/webhooks/') or 'Connection refused' in str(e):
+            logger.error(f"Invalid webhook URL or network error: {webhook_url}")
+            raise requests.exceptions.RequestException(f"Invalid webhook URL or network error: {webhook_url}")
+        
+        # Only ignore errors in test environment for valid webhook URLs
         if is_test_env and webhook_url.startswith('https://discord.com/api/webhooks/'):
             logger.warning("Ignoring request error in test environment")
             return False
