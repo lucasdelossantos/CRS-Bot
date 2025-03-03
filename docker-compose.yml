@@ -13,7 +13,7 @@ services:
     restart: unless-stopped
     user: crsbot
     healthcheck:
-      test: ["CMD", "python", "-c", "import os; assert os.path.exists('/app/data/github_release_bot.log') and os.access('/app/data/github_release_bot.log', os.W_OK), 'Log file not accessible'"]
+      test: ["CMD", "python", "-c", "import os; import time; log_file = '/app/data/github_release_bot.log'; assert os.path.exists(log_file) and os.access(log_file, os.W_OK), 'Log file not accessible'; time.sleep(5); with open(log_file, 'r') as f: content = f.read(); assert 'Starting new release check' in content, 'Application not started'"]
       interval: 30s
       timeout: 10s
       retries: 3
