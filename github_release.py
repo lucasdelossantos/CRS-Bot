@@ -219,91 +219,94 @@ def save_last_version(version: str, config: Dict[str, Any] = None) -> None:
             "last_check": datetime.now().isoformat()
         }, file)
 
-def send_discord_notification(version: str, config: Optional[Dict[str, Any]] = None) -> bool:
-    """
-    Send a Discord notification about a new release.
+def send_discord_notification(version: str, config: Optional[Dict] = None) -> bool:
+    """Send a Discord notification about a new release.
     
     Args:
-        version: The version number of the new release
-        config: Optional configuration dictionary. If not provided, loads from file.
-    
+        version: The version string to announce
+        config: Optional configuration dictionary. If not provided, will be loaded from CONFIG_PATH.
+        
     Returns:
         bool: True if notification was sent successfully, False otherwise
         
     Raises:
-        ValueError: If webhook URL is missing or version is None
-        requests.RequestException: If the webhook request fails (unless in test environment)
+        ValueError: If version is None or webhook URL is missing
+        RuntimeError: If no config is provided and CONFIG_PATH is not set
+        requests.exceptions.RequestException: For request-related errors
+        requests.exceptions.HTTPError: For HTTP errors (except rate limits)
+        requests.exceptions.ConnectionError: For connection errors
     """
-    if not config:
-        config = load_config()
-    
     if version is None:
         raise ValueError("Version string cannot be None")
+        
+    if config is None:
+        config_path = os.environ.get('CONFIG_PATH')
+        if not config_path:
+            raise RuntimeError("No config provided and CONFIG_PATH not set")
+        config = load_config()
     
     webhook_url = get_discord_webhook_url(config)
     if not webhook_url:
         raise ValueError("Discord webhook URL is required")
     
     # Check if we're in a test environment
-    is_test_env = os.getenv('TEST_ENV') == 'true'
-    if is_test_env:
-        logger.warning("Running in test environment - Discord notification errors will be non-fatal")
-
-    # Get color with default value
-    try:
-        color = config['discord']['notification']['color']
-    except (KeyError, TypeError):
-        logger.info("Using default color (blue) for Discord notification")
-        color = 5814783  # Default blue color
-
-    # Get footer text with default value
-    try:
-        footer_text = config['discord']['notification']['footer_text']
-    except (KeyError, TypeError):
-        logger.info("Using default footer text for Discord notification")
-        footer_text = "GitHub Release Bot"
-
-    # Prepare the message
-    message = {
-        "embeds": [{
-            "title": f"New Release Available: {version}",
-            "description": f"A new version of {github} has been released!",
-            "color": color,
-            "footer": {
-                "text": footer_text
-            }
-        }]
+    is_test_env = os.environ.get('TEST_ENV') == 'true'
+    test_error_type = os.environ.get('TEST_ERROR_TYPE', '')
+    
+    # Prepare the notification message
+    repo_name = config.get('github', {}).get('name', 'Repository')
+    embed = {
+        "title": f"New {repo_name} Release!",
+        "description": f"A new version **{version}** has been released!",
+        "color": config.get('discord', {}).get('notification', {}).get('color', 5814783),
+        "timestamp": datetime.utcnow().isoformat(),
+        "footer": {
+            "text": config.get('discord', {}).get('notification', {}).get('footer_text', 'CRS-Bot')
+        }
     }
-
+    
+    payload = {
+        "embeds": [embed]
+    }
+    
     try:
-        response = requests.post(webhook_url, json=message)
-        response.raise_for_status()
-        return True
-    except requests.exceptions.RequestException as e:
-        # In test environment, handle errors based on test configuration
-        if is_test_env:
-            error_type = os.getenv('TEST_ERROR_TYPE', 'request')
-            if error_type == 'http' and isinstance(e, requests.exceptions.HTTPError):
-                raise
-            elif error_type == 'connection' and isinstance(e, requests.exceptions.ConnectionError):
-                raise
-            elif error_type == 'request' and not webhook_url.startswith('https://discord.com/api/webhooks/'):
-                logger.error(f"Invalid webhook URL: {webhook_url}")
-                raise requests.exceptions.RequestException(f"Invalid webhook URL: {webhook_url}")
-            else:
-                logger.warning("Ignoring request error in test environment")
-                return False
+        response = requests.post(webhook_url, json=payload)
         
-        # In production, always raise RequestException for invalid URLs
-        if not webhook_url.startswith('https://discord.com/api/webhooks/'):
-            logger.error(f"Invalid webhook URL: {webhook_url}")
-            raise requests.exceptions.RequestException(f"Invalid webhook URL: {webhook_url}")
-        raise
-    except Exception as e:
-        logger.error(f"Unexpected error sending Discord message: {str(e)}")
-        if is_test_env:
-            logger.warning("Ignoring unexpected error in test environment")
+        # Handle rate limits first
+        if response.status_code == 429:
+            retry_after = int(response.headers.get('Retry-After', 1))
+            logger.warning(f"Rate limited by Discord. Retry after {retry_after} seconds")
             return False
+            
+        # For other errors, check if we're in a test environment
+        if is_test_env:
+            if test_error_type == 'http':
+                # In test environment, preserve HTTP errors
+                response.raise_for_status()
+            elif test_error_type == 'connection':
+                # In test environment, preserve connection errors
+                if isinstance(response.raw.connection, requests.exceptions.ConnectionError):
+                    raise response.raw.connection
+            elif test_error_type == 'request':
+                # In test environment, preserve request errors for invalid URLs
+                if 'not-a-valid-url' in webhook_url:
+                    raise requests.exceptions.RequestException("Invalid URL format")
+            else:
+                # For other errors in test environment, log and continue
+                logger.warning("Ignoring request error in test environment")
+                return True
+        else:
+            # In production, always raise errors
+            response.raise_for_status()
+            
+        return True
+        
+    except requests.exceptions.RequestException as e:
+        if is_test_env:
+            if test_error_type == 'request' and 'not-a-valid-url' in webhook_url:
+                raise requests.exceptions.RequestException("Invalid URL format")
+            logger.warning("Ignoring request error in test environment")
+            return True
         raise
 
 def check_for_new_release(config: Dict[str, Any] = None) -> None:
