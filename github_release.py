@@ -115,9 +115,10 @@ DISCORD_WEBHOOK_URL = get_discord_webhook_url(config)
 # Version pattern
 VERSION_PATTERN = re.compile(config['github']['version_pattern'])
 
-# Only configure logging if not in test environment and when needed
-if not os.getenv('TEST_ENV'):
-    configure_logging(config)
+def setup_logging():
+    """Configure logging if not already configured."""
+    if not logger.handlers and not os.getenv('TEST_ENV'):
+        configure_logging(config)
 
 def create_github_session(config: Dict[str, Any]) -> requests.Session:
     """
@@ -327,6 +328,7 @@ if __name__ == "__main__":
             logger.error("No Discord webhook URL configured! Please set DISCORD_WEBHOOK_URL environment variable, configure in GitHub Actions, or set in config file.")
             sys.exit(1)
         
+        setup_logging()
         check_for_new_release()
     except Exception as e:
         logger.exception("Unexpected error occurred:")
