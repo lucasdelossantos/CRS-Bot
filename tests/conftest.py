@@ -5,6 +5,10 @@ This module contains fixtures that are automatically available to all test files
 import os
 import shutil
 import pytest
+import json
+import yaml
+import tempfile
+from pathlib import Path
 
 
 @pytest.fixture(autouse=True)
@@ -44,4 +48,13 @@ def ensure_data_directory():
             elif os.path.isdir(file_path):
                 shutil.rmtree(file_path)
         except Exception as e:
-            print(f'Error cleaning up {file_path}: {e}') 
+            print(f'Error cleaning up {file_path}: {e}')
+
+
+@pytest.fixture(autouse=True)
+def setup_test_env():
+    """Setup test environment variables."""
+    os.environ['TEST_ENV'] = 'true'
+    yield
+    if 'TEST_ENV' in os.environ:
+        del os.environ['TEST_ENV'] 

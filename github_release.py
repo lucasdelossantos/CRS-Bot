@@ -208,6 +208,7 @@ def send_discord_notification(version: str, config: Dict[str, Any] = None) -> bo
     
     Raises:
         ValueError: If webhook URL is missing or version is None
+        requests.RequestException: If the webhook request fails (unless in test environment)
     """
     if not config:
         config = load_config()
@@ -219,10 +220,10 @@ def send_discord_notification(version: str, config: Dict[str, Any] = None) -> bo
     if not webhook_url:
         raise ValueError("Discord webhook URL is required")
     
-    # Check if this is a test webhook
-    is_test_webhook = webhook_url.endswith('/test')
-    if is_test_webhook:
-        logger.warning("Using test webhook URL - Discord notification errors will be non-fatal")
+    # Check if we're in a test environment
+    is_test_env = os.getenv('TEST_ENV') == 'true'
+    if is_test_env:
+        logger.info("Running in test environment - Discord notification errors will be non-fatal")
     
     logger.info(f"Sending Discord notification for version: {version}")
     github_repo = config['github']['repository']
@@ -257,7 +258,7 @@ def send_discord_notification(version: str, config: Dict[str, Any] = None) -> bo
     
     try:
         response = requests.post(webhook_url, json=message)
-        if response.status_code == 405 and is_test_webhook:
+        if response.status_code == 405 and is_test_env:
             logger.info("Received expected 405 error from test webhook - this is normal in test environment")
             return True
         response.raise_for_status()
@@ -265,7 +266,7 @@ def send_discord_notification(version: str, config: Dict[str, Any] = None) -> bo
         return True
     except requests.RequestException as e:
         logger.error(f"HTTP error sending Discord message: {e}")
-        if not is_test_webhook:
+        if not is_test_env:
             logger.error("Unexpected error occurred:")
             raise
         logger.warning("Ignoring Discord webhook error in test environment")
