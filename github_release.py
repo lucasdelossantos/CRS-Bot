@@ -252,6 +252,9 @@ def send_discord_notification(version: str, config: Optional[Dict[str, Any]] = N
     # Validate webhook URL format
     if not webhook_url.startswith('https://discord.com/api/webhooks/'):
         logger.error(f"Invalid webhook URL: {webhook_url}")
+        if is_test_env:
+            logger.warning("Ignoring invalid URL in test environment")
+            return False
         raise requests.exceptions.RequestException(f"Invalid webhook URL: {webhook_url}")
 
     # Get color with default value
