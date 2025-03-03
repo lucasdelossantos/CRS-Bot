@@ -244,10 +244,10 @@ def send_discord_notification(version: str, config: Optional[Dict[str, Any]] = N
     if not webhook_url:
         raise ValueError("Discord webhook URL is required")
     
-    # Check if this is a test webhook
-    is_test_webhook = webhook_url.endswith('/test')
-    if is_test_webhook:
-        logger.warning("Using test webhook - errors will be non-fatal")
+    # Check if we're in a test environment
+    is_test_env = os.getenv('TEST_ENV') == 'true'
+    if is_test_env:
+        logger.warning("Running in test environment - Discord notification errors will be non-fatal")
     
     # Get color with default value
     try:
@@ -284,25 +284,25 @@ def send_discord_notification(version: str, config: Optional[Dict[str, Any]] = N
         return True
     except requests.exceptions.HTTPError as e:
         logger.error(f"HTTP error sending Discord message: {str(e)}")
-        if is_test_webhook and e.response.status_code == 405:
+        if is_test_env and e.response.status_code == 405:
             logger.warning("Ignoring expected 405 error from test webhook")
             return True
         raise
     except requests.exceptions.ConnectionError as e:
         logger.error(f"Connection error sending Discord message: {str(e)}")
-        if is_test_webhook:
+        if is_test_env:
             logger.warning("Ignoring connection error in test environment")
             return False
         raise
     except requests.exceptions.RequestException as e:
         logger.error(f"Request error sending Discord message: {str(e)}")
-        if is_test_webhook:
+        if is_test_env:
             logger.warning("Ignoring request error in test environment")
             return False
         raise
     except Exception as e:
         logger.error(f"Unexpected error sending Discord message: {str(e)}")
-        if is_test_webhook:
+        if is_test_env:
             logger.warning("Ignoring unexpected error in test environment")
             return False
         raise
