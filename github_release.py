@@ -229,34 +229,57 @@ def send_discord_notification(version: str, config: Optional[Dict[str, Any]] = N
     
     Returns:
         bool: True if notification was sent successfully, False otherwise
+        
+    Raises:
+        ValueError: If webhook URL is missing or version is None
+        requests.RequestException: If the webhook request fails (unless in test environment)
     """
     if not config:
         config = load_config()
     
+    if version is None:
+        raise ValueError("Version string cannot be None")
+    
     webhook_url = get_discord_webhook_url(config)
     if not webhook_url:
-        logger.error("No Discord webhook URL available")
-        return False
+        raise ValueError("Discord webhook URL is required")
     
     # Check if this is a test webhook
     is_test_webhook = webhook_url.endswith('/test')
     if is_test_webhook:
         logger.warning("Using test webhook - errors will be non-fatal")
     
+    # Get color with default value
+    try:
+        color = config['discord']['notification']['color']
+    except (KeyError, TypeError):
+        logger.info("Using default color (blue) for Discord notification")
+        color = 5814783  # Default blue color
+    
+    # Get footer text with default value
+    try:
+        footer_text = config['discord']['notification']['footer_text']
+    except (KeyError, TypeError):
+        logger.info("Using default footer text for Discord notification")
+        footer_text = "GitHub Release Bot"
+    
     # Prepare the message
     message = {
         "embeds": [{
             "title": f"New Release Available: {version}",
             "description": f"A new version of {github} has been released!",
-            "color": config['discord']['notification']['color'],
+            "color": color,
             "footer": {
-                "text": config['discord']['notification']['footer_text']
+                "text": footer_text
             }
         }]
     }
     
     try:
         response = requests.post(webhook_url, json=message)
+        if response.status_code == 429:
+            logger.warning("Rate limited by Discord API")
+            return False
         response.raise_for_status()
         return True
     except requests.exceptions.HTTPError as e:
