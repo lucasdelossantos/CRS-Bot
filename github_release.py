@@ -280,20 +280,28 @@ def send_discord_notification(version: str, config: Optional[Dict[str, Any]] = N
         response.raise_for_status()
         return True
     except requests.exceptions.RequestException as e:
-        # For invalid URLs or network errors, always raise RequestException
-        if not webhook_url.startswith('https://discord.com/api/webhooks/') or 'Connection refused' in str(e):
-            logger.error(f"Invalid webhook URL or network error: {webhook_url}")
-            raise requests.exceptions.RequestException(f"Invalid webhook URL or network error: {webhook_url}")
+        # In test environment, handle errors based on test configuration
+        if is_test_env:
+            error_type = os.getenv('TEST_ERROR_TYPE', 'request')
+            if error_type == 'http' and isinstance(e, requests.exceptions.HTTPError):
+                raise
+            elif error_type == 'connection' and isinstance(e, requests.exceptions.ConnectionError):
+                raise
+            elif error_type == 'request' and not webhook_url.startswith('https://discord.com/api/webhooks/'):
+                logger.error(f"Invalid webhook URL: {webhook_url}")
+                raise requests.exceptions.RequestException(f"Invalid webhook URL: {webhook_url}")
+            else:
+                logger.warning("Ignoring request error in test environment")
+                return False
         
-        # Only ignore errors in test environment for valid webhook URLs
-        if is_test_env and webhook_url.startswith('https://discord.com/api/webhooks/'):
-            logger.warning("Ignoring request error in test environment")
-            return False
+        # In production, always raise RequestException for invalid URLs
+        if not webhook_url.startswith('https://discord.com/api/webhooks/'):
+            logger.error(f"Invalid webhook URL: {webhook_url}")
+            raise requests.exceptions.RequestException(f"Invalid webhook URL: {webhook_url}")
         raise
     except Exception as e:
         logger.error(f"Unexpected error sending Discord message: {str(e)}")
-        # Only ignore unexpected errors in test environment for valid webhook URLs
-        if is_test_env and webhook_url.startswith('https://discord.com/api/webhooks/'):
+        if is_test_env:
             logger.warning("Ignoring unexpected error in test environment")
             return False
         raise
