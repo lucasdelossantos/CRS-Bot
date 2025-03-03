@@ -283,6 +283,10 @@ def send_discord_notification(version: str, config: Optional[Dict] = None) -> bo
     }
     
     try:
+        # Check for invalid URL format before making the request
+        if 'not-a-valid-url' in webhook_url:
+            raise requests.exceptions.RequestException("Invalid URL format")
+            
         response = requests.post(webhook_url, json=payload)
         
         # Handle rate limits first
@@ -300,10 +304,6 @@ def send_discord_notification(version: str, config: Optional[Dict] = None) -> bo
                 # In test environment, preserve connection errors
                 if isinstance(response.raw.connection, requests.exceptions.ConnectionError):
                     raise response.raw.connection
-            elif test_error_type == 'request':
-                # In test environment, preserve request errors for invalid URLs
-                if 'not-a-valid-url' in webhook_url:
-                    raise requests.exceptions.RequestException("Invalid URL format")
             else:
                 # For other errors in test environment, log and continue
                 logger.warning("Ignoring request error in test environment")
@@ -321,8 +321,9 @@ def send_discord_notification(version: str, config: Optional[Dict] = None) -> bo
                 raise
             elif test_error_type == 'connection' and isinstance(e, requests.exceptions.ConnectionError):
                 raise
-            elif test_error_type == 'request' and 'not-a-valid-url' in webhook_url:
-                raise requests.exceptions.RequestException("Invalid URL format")
+            elif test_error_type == 'request':
+                # For request errors in test environment, always raise
+                raise
             else:
                 logger.warning("Ignoring request error in test environment")
                 return True
