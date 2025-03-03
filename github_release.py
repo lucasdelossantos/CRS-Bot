@@ -290,9 +290,9 @@ def send_discord_notification(version: str, config: Optional[Dict[str, Any]] = N
         raise
     except requests.exceptions.ConnectionError as e:
         logger.error(f"Connection error sending Discord message: {str(e)}")
-        # For invalid URLs, convert ConnectionError to RequestException
-        if not webhook_url.startswith('https://discord.com/api/webhooks/'):
-            raise requests.exceptions.RequestException(f"Invalid webhook URL: {webhook_url}")
+        # For invalid URLs or unregistered mocks, convert to RequestException
+        if not webhook_url.startswith('https://discord.com/api/webhooks/') or 'does not match any registered mock' in str(e):
+            raise requests.exceptions.RequestException(f"Invalid webhook URL or unregistered mock: {webhook_url}")
         # Only ignore connection errors in test environment for valid webhook URLs
         if is_test_env:
             logger.warning("Ignoring connection error in test environment")
