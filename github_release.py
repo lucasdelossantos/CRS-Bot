@@ -31,6 +31,36 @@ def load_config() -> Dict[str, Any]:
     except Exception as e:
         raise RuntimeError(f"Failed to load configuration from {config_path}: {e}")
 
+def configure_logging(config: Dict[str, Any] = None) -> None:
+    """
+    Configure logging based on the provided configuration.
+    
+    Args:
+        config: Configuration dictionary containing logging settings
+    """
+    if not config:
+        config = load_config()
+    
+    log_file = config['logging']['file']
+    if not os.path.isabs(log_file):
+        # If the path is relative, make it absolute relative to /app
+        log_file = os.path.join('/app', log_file)
+    
+    # Create log file if it doesn't exist
+    os.makedirs(os.path.dirname(log_file), exist_ok=True)
+    if not os.path.exists(log_file):
+        with open(log_file, 'a') as f:
+            pass
+    
+    logging.basicConfig(
+        level=getattr(logging, config['logging']['level']),
+        format=config['logging']['format'],
+        handlers=[
+            logging.FileHandler(log_file, mode='a', encoding='utf-8'),
+            logging.StreamHandler()
+        ]
+    )
+
 def get_discord_webhook_url(config: Dict[str, Any] = None) -> Optional[str]:
     """
     Get Discord webhook URL from config or environment variables.
@@ -64,22 +94,7 @@ def get_discord_webhook_url(config: Dict[str, Any] = None) -> Optional[str]:
 config = load_config()
 
 # Configure logging
-log_file = config['logging']['file']
-if not os.path.isabs(log_file):
-    # If the path is relative, make it absolute relative to /app
-    log_file = os.path.join('/app', log_file)
-
-if not os.path.exists(log_file):
-    raise RuntimeError(f"Log file {log_file} does not exist. Please create it with appropriate permissions.")
-
-logging.basicConfig(
-    level=getattr(logging, config['logging']['level']),
-    format=config['logging']['format'],
-    handlers=[
-        logging.FileHandler(log_file, mode='a', encoding='utf-8'),
-        logging.StreamHandler()
-    ]
-)
+configure_logging(config)
 logger = logging.getLogger(__name__)
 
 # GitHub configuration
