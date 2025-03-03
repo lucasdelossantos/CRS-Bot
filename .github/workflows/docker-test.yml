@@ -429,13 +429,15 @@ jobs:
         sudo rm -rf temp_data
 
         echo "⏳ Waiting for container health check..."
-        if ! timeout 10s bash -c "until docker compose ps | grep -q 'healthy'; do 
+        if ! timeout 30s bash -c "until docker compose ps | grep -q 'healthy'; do 
             echo 'Waiting for container to be healthy...'
             echo 'Current container logs:'
             docker compose logs --tail=20
             echo 'Container status:'
             docker compose ps
-            sleep 1
+            echo 'Health check command output:'
+            docker compose exec -T crs-bot python -c "import os; import time; log_file = '/app/data/github_release_bot.log'; print('Log file exists:', os.path.exists(log_file)); print('Log file writable:', os.access(log_file, os.W_OK)); print('Log file contents:'); print(open(log_file, 'r').read() if os.path.exists(log_file) else 'File not found')"
+            sleep 2
           done"; then
           echo "❌ Container failed to become healthy. Container logs:"
           docker compose logs
