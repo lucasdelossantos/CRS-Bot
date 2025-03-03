@@ -10,7 +10,6 @@ import yaml
 import tempfile
 from pathlib import Path
 import logging
-import yaml
 
 def setup_test_logging():
     """Configure logging for tests."""
@@ -23,11 +22,12 @@ def setup_test_logging():
         }
     }
     
-    # Create data directory
-    os.makedirs('data', exist_ok=True)
+    # Create data directory in current working directory
+    data_dir = os.path.join(os.getcwd(), 'data')
+    os.makedirs(data_dir, exist_ok=True)
     
     # Create log file
-    log_file = os.path.join('data', 'github_release_bot.log')
+    log_file = os.path.join(data_dir, 'github_release_bot.log')
     with open(log_file, 'a') as f:
         pass
     
@@ -40,12 +40,14 @@ def setup_test_logging():
             logging.StreamHandler()
         ]
     )
+    
+    return config
 
 @pytest.fixture(autouse=True, scope="session")
 def setup_test_environment():
     """Setup test environment before any tests run."""
     # Setup logging first
-    setup_test_logging()
+    config = setup_test_logging()
     
     # Setup test environment variables
     os.environ['TEST_ENV'] = 'true'
