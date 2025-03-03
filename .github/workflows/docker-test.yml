@@ -431,6 +431,10 @@ jobs:
         echo "⏳ Waiting for container health check..."
         if ! timeout 10s bash -c "until docker compose ps | grep -q 'healthy'; do 
             echo 'Waiting for container to be healthy...'
+            echo 'Current container logs:'
+            docker compose logs --tail=20
+            echo 'Container status:'
+            docker compose ps
             sleep 1
           done"; then
           echo "❌ Container failed to become healthy. Container logs:"
