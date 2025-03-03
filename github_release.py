@@ -290,19 +290,22 @@ def send_discord_notification(version: str, config: Optional[Dict[str, Any]] = N
         raise
     except requests.exceptions.ConnectionError as e:
         logger.error(f"Connection error sending Discord message: {str(e)}")
-        if is_test_env:
+        # Only ignore connection errors in test environment for valid webhook URLs
+        if is_test_env and webhook_url.startswith('https://discord.com/api/webhooks/'):
             logger.warning("Ignoring connection error in test environment")
             return False
         raise
     except requests.exceptions.RequestException as e:
         logger.error(f"Request error sending Discord message: {str(e)}")
-        if is_test_env:
+        # Only ignore request errors in test environment for valid webhook URLs
+        if is_test_env and webhook_url.startswith('https://discord.com/api/webhooks/'):
             logger.warning("Ignoring request error in test environment")
             return False
         raise
     except Exception as e:
         logger.error(f"Unexpected error sending Discord message: {str(e)}")
-        if is_test_env:
+        # Only ignore unexpected errors in test environment for valid webhook URLs
+        if is_test_env and webhook_url.startswith('https://discord.com/api/webhooks/'):
             logger.warning("Ignoring unexpected error in test environment")
             return False
         raise
