@@ -9,6 +9,7 @@ services:
     environment:
       - DISCORD_WEBHOOK_URL=${DISCORD_WEBHOOK_URL}  # From .env file or environment
       - PYTHONUNBUFFERED=1
+      - TEST_ENV=${TEST_ENV}  # From .env file or environment
     restart: unless-stopped
     user: crsbot
     healthcheck:
