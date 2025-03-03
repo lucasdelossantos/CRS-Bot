@@ -245,6 +245,19 @@ def send_discord_notification(version: str, config: Optional[Dict] = None) -> bo
             raise RuntimeError("No config provided and CONFIG_PATH not set")
         config = load_config()
     
+    # Get color with default value and logging
+    color = config.get('discord', {}).get('notification', {}).get('color')
+    if color is None:
+        color = 5814783  # Default blue color
+        logger.info("Using default color (blue) for Discord notification")
+    
+    # Get footer text with default value and logging
+    footer_text = config.get('discord', {}).get('notification', {}).get('footer_text')
+    if footer_text is None:
+        footer_text = "CRS-Bot"
+        logger.info("Using default footer text for Discord notification")
+    
+    
     webhook_url = get_discord_webhook_url(config)
     if not webhook_url:
         raise ValueError("Discord webhook URL is required")
