@@ -461,9 +461,21 @@ def test_invalid_webhook_url_format(test_config):
     webhook URL raises a RequestException.
     """
     test_config['discord']['notification']['webhook_url'] = "not-a-valid-url"
-    
-    with pytest.raises(requests.exceptions.RequestException):
+    print(f"\nTest configuration: {test_config}")
+    print(f"Webhook URL: {test_config['discord']['notification']['webhook_url']}")
+
+    try:
         send_discord_notification("v4.0.0", test_config)
+        print("\nExpected RequestException to be raised, but no exception was raised")
+        assert False, "Expected RequestException to be raised"
+    except requests.exceptions.RequestException as e:
+        print(f"\nGot expected RequestException: {str(e)}")
+        print(f"Exception type: {type(e)}")
+        assert True
+    except Exception as e:
+        print(f"\nGot unexpected exception: {str(e)}")
+        print(f"Exception type: {type(e)}")
+        assert False, f"Expected RequestException, got {type(e)}"
 
 def test_send_discord_notification_missing_webhook(clean_env, test_config, release_data):
     """Verify proper error handling when webhook URL is missing.
