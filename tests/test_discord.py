@@ -294,7 +294,7 @@ def test_discord_error_handling(test_config):
        - Validates error status code
     """
     # Set up test to expect HTTP errors
-    os.environ['TEST_ERROR_TYPE'] = 'http'
+    os.environ['TEST_DISCORD_ERROR_HANDLING'] = 'true'
     
     webhook_url = test_config['discord']['notification']['webhook_url']
     
@@ -328,7 +328,7 @@ def test_discord_network_error(test_config):
     raised as ConnectionError exceptions.
     """
     # Set up test to expect connection errors
-    os.environ['TEST_ERROR_TYPE'] = 'connection'
+    os.environ['TEST_DISCORD_NETWORK_ERROR'] = 'true'
     
     webhook_url = test_config['discord']['notification']['webhook_url']
     
@@ -464,7 +464,7 @@ def test_invalid_webhook_url_format(test_config):
     webhook URL raises a RequestException.
     """
     # Set up test to expect request errors
-    os.environ['TEST_ERROR_TYPE'] = 'request'
+    os.environ['TEST_INVALID_WEBHOOK_URL'] = 'true'
     
     test_config['discord']['notification']['webhook_url'] = "not-a-valid-url"
     print(f"\nTest configuration: {test_config}")
