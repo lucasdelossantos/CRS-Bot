@@ -47,10 +47,15 @@ def configure_logging(config: Dict[str, Any] = None) -> None:
         log_file = os.path.join('/app', log_file)
     
     # Create log file if it doesn't exist
-    os.makedirs(os.path.dirname(log_file), exist_ok=True)
-    if not os.path.exists(log_file):
-        with open(log_file, 'a') as f:
-            pass
+    try:
+        os.makedirs(os.path.dirname(log_file), exist_ok=True)
+        if not os.path.exists(log_file):
+            with open(log_file, 'a') as f:
+                pass
+    except PermissionError:
+        # In test environment, we might not have permission to create files
+        # This is handled by the test configuration
+        pass
     
     logging.basicConfig(
         level=getattr(logging, config['logging']['level']),
@@ -93,8 +98,7 @@ def get_discord_webhook_url(config: Dict[str, Any] = None) -> Optional[str]:
 # Load configuration
 config = load_config()
 
-# Configure logging
-configure_logging(config)
+# Initialize logger without handlers
 logger = logging.getLogger(__name__)
 
 # GitHub configuration
@@ -110,6 +114,10 @@ DISCORD_WEBHOOK_URL = get_discord_webhook_url(config)
 
 # Version pattern
 VERSION_PATTERN = re.compile(config['github']['version_pattern'])
+
+# Only configure logging if not in test environment and when needed
+if not os.getenv('TEST_ENV'):
+    configure_logging(config)
 
 def create_github_session(config: Dict[str, Any]) -> requests.Session:
     """
