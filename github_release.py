@@ -219,82 +219,70 @@ def save_last_version(version: str, config: Dict[str, Any] = None) -> None:
             "last_check": datetime.now().isoformat()
         }, file)
 
-def send_discord_notification(version: str, config: Dict[str, Any] = None) -> bool:
+def send_discord_notification(version: str, config: Optional[Dict[str, Any]] = None) -> bool:
     """
-    Send a notification to Discord about a new release.
+    Send a Discord notification about a new release.
     
     Args:
-        version: Version string to include in notification
-        config: Configuration dictionary containing Discord settings
+        version: The version number of the new release
+        config: Optional configuration dictionary. If not provided, loads from file.
     
     Returns:
         bool: True if notification was sent successfully, False otherwise
-    
-    Raises:
-        ValueError: If webhook URL is missing or version is None
-        requests.RequestException: If the webhook request fails (unless in test environment)
     """
     if not config:
         config = load_config()
     
-    if version is None:
-        raise ValueError("Version string cannot be None")
-    
     webhook_url = get_discord_webhook_url(config)
     if not webhook_url:
-        raise ValueError("Discord webhook URL is required")
+        logger.error("No Discord webhook URL available")
+        return False
     
-    # Check if we're in a test environment
-    is_test_env = os.getenv('TEST_ENV') == 'true'
-    if is_test_env:
-        logger.info("Running in test environment - Discord notification errors will be non-fatal")
+    # Check if this is a test webhook
+    is_test_webhook = webhook_url.endswith('/test')
+    if is_test_webhook:
+        logger.warning("Using test webhook - errors will be non-fatal")
     
-    logger.info(f"Sending Discord notification for version: {version}")
-    github_repo = config['github']['repository']
-    github_name = config['github']['name']
-    release_url = f"https://github.com/{github_repo}/releases/tag/{version}"
-    
-    # Get color with default value
-    try:
-        color = config['discord']['notification']['color']
-    except (KeyError, TypeError):
-        logger.info("Using default color (blue) for Discord notification")
-        color = 5814783  # Default blue color
-    
-    # Get footer text with default value
-    try:
-        footer_text = config['discord']['notification']['footer_text']
-    except (KeyError, TypeError):
-        logger.info("Using default footer text for Discord notification")
-        footer_text = "GitHub Release Bot"
-    
+    # Prepare the message
     message = {
         "embeds": [{
-            "title": f"New {github_name} Release!",
-            "description": f"Version [{version}]({release_url}) has been released.",
-            "color": color,
-            "timestamp": datetime.now().isoformat(),
+            "title": f"New Release Available: {version}",
+            "description": f"A new version of {github} has been released!",
+            "color": config['discord']['notification']['color'],
             "footer": {
-                "text": footer_text
+                "text": config['discord']['notification']['footer_text']
             }
         }]
     }
     
     try:
         response = requests.post(webhook_url, json=message)
-        if response.status_code == 405 and is_test_env:
-            logger.info("Received expected 405 error from test webhook - this is normal in test environment")
-            return True
         response.raise_for_status()
-        logger.info("Discord notification sent successfully")
         return True
-    except requests.RequestException as e:
-        logger.error(f"HTTP error sending Discord message: {e}")
-        if not is_test_env:
-            logger.error("Unexpected error occurred:")
-            raise
-        logger.warning("Ignoring Discord webhook error in test environment")
-        return False
+    except requests.exceptions.HTTPError as e:
+        logger.error(f"HTTP error sending Discord message: {str(e)}")
+        if is_test_webhook and e.response.status_code == 405:
+            logger.warning("Ignoring expected 405 error from test webhook")
+            return True
+        raise
+    except requests.exceptions.ConnectionError as e:
+        logger.error(f"Connection error sending Discord message: {str(e)}")
+        if is_test_webhook:
+            logger.warning("Ignoring connection error in test environment")
+            return False
+        raise
+    except requests.exceptions.RequestException as e:
+        logger.error(f"Request error sending Discord message: {str(e)}")
+        if is_test_webhook:
+            logger.warning("Ignoring request error in test environment")
+            return False
+        raise
+    except Exception as e:
+        logger.error(f"Unexpected error sending Discord message: {str(e)}")
+        if is_test_webhook:
+            logger.warning("Ignoring unexpected error in test environment")
+            return False
+        raise
 
 def check_for_new_release(config: Dict[str, Any] = None) -> None:
     """Check for new releases and send notifications if found."""
