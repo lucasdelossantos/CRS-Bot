@@ -5,6 +5,8 @@ on:
     branches: [ "main" ]
   pull_request:
     branches: [ "main" ]
+  pull_request_target:
+    types: [ labeled ]
   schedule:
   - cron: '30 1 * * 0' # Runs at 01:30 UTC every Sunday
 
@@ -16,6 +18,10 @@ jobs:
       actions: read
       contents: read
       security-events: write
+    if: |
+      github.event_name == 'push' ||
+      github.event_name == 'pull_request' ||
+      (github.event_name == 'pull_request_target' && github.event.label.name == 'rerun-tests')
 
     strategy:
       fail-fast: false

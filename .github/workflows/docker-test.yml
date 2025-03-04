@@ -21,12 +21,19 @@ on:
     - 'setup.py'
     - '**.py'
     - '.github/workflows/docker-test.yml'
+  pull_request_target:
+    types: [ labeled ]
   workflow_dispatch:
 
 
 jobs:
   docker-test:
     runs-on: ubuntu-latest
+    if: |
+      github.event_name == 'push' ||
+      github.event_name == 'pull_request' ||
+      (github.event_name == 'pull_request_target' && github.event.label.name == 'rerun-tests')
+
     steps:
     - uses: actions/checkout@v4
 
