@@ -116,6 +116,7 @@ jobs:
             echo "pyyaml>=6.0.1"
             echo "responses>=0.25.0"
             echo "pytest-mock>=$latest_pytest_mock"
+            echo "setuptools>=69.0.3"
           } > requirements.txt.new
           
           echo "Comparing old and new requirements.txt..."
