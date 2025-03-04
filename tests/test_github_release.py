@@ -126,7 +126,7 @@ def test_logging_setup_function(test_config):
         log_file = os.path.abspath(test_config['logging']['file'])
         with open(log_file, 'a') as f:
             f.write("")  # Create empty file
-        os.chmod(log_file, 0o666)  # Make file writable
+        os.chmod(log_file, 0o660)  # Make file readable/writable by owner and group only
         
         # Update the config to use the absolute path
         test_config['logging']['file'] = log_file
