@@ -31,6 +31,8 @@ FROM builder AS test
 RUN pip install --no-cache-dir pytest pytest-cov
 # Set test environment variables
 ENV TEST_ENV=true
+# Create coverage directory with correct permissions
+RUN mkdir -p /coverage && chmod 777 /coverage
 # Run tests with coverage
 RUN python -m pytest tests/ --cov=. --cov-report=term-missing
 
