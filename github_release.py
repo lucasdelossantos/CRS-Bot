@@ -189,8 +189,12 @@ def get_latest_release(config: Dict[str, Any] = None) -> Optional[str]:
         response = session.get(api_url)
         response.raise_for_status()
         data = response.json()
-        logger.info(f"Latest release found: {data.get('tag_name')}")
-        return data["tag_name"]
+        tag_name = data.get("tag_name")
+        if not tag_name:
+            logger.error("No tag_name found in release data")
+            return None
+        logger.info(f"Latest release found: {tag_name}")
+        return tag_name
     except requests.RequestException as e:
         logger.error(f"Error fetching release: {e}")
         response = getattr(e, 'response', None)
@@ -239,6 +243,11 @@ def save_last_version(version: str, config: Dict[str, Any] = None) -> None:
     
     version_file = config['storage']['version_file']
     logger.info(f"Saving new version: {version}")
+    
+    # Create directory if it doesn't exist
+    version_dir = os.path.dirname(version_file)
+    if version_dir:
+        os.makedirs(version_dir, exist_ok=True)
     
     with open(version_file, "w") as file:
         json.dump({
