@@ -32,8 +32,8 @@ RUN pip install --no-cache-dir pytest pytest-cov
 # Set test environment variables
 ENV TEST_ENV=true \
     COVERAGE_FILE=/build/.coverage
-# Create coverage directory with correct permissions
-RUN mkdir -p /build/.coverage && chmod 755 /build/.coverage
+# Create coverage file with correct permissions
+RUN touch /build/.coverage && chmod 644 /build/.coverage
 # Run tests with coverage
 RUN python -m pytest tests/ --cov=. --cov-report=term-missing
 
