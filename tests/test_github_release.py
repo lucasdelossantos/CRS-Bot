@@ -122,12 +122,12 @@ def test_logging_setup_function(test_config):
         log_dir = os.path.dirname(test_config['logging']['file'])
         os.makedirs(log_dir, exist_ok=True)
         
-        # Create the log file and ensure it's writable
+        # Create the log file with correct permissions using tempfile
         log_file = os.path.abspath(test_config['logging']['file'])
-        with open(log_file, 'a') as f:
-            f.write("")  # Create empty file
-        # nosec B103: This is a test environment with a temporary file
-        os.chmod(log_file, 0o660)  # Make file readable/writable by owner and group only
+        with tempfile.NamedTemporaryFile(mode='w', dir=log_dir, delete=False) as temp:
+            temp.write("")  # Create empty file
+            os.rename(temp.name, log_file)
+            os.chmod(log_file, 0o600)  # nosec B103: This is a test environment with a temporary file
         
         # Update the config to use the absolute path
         test_config['logging']['file'] = log_file
