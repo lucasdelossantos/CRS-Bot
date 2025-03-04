@@ -55,7 +55,7 @@ RUN apt-get update && \
         ca-certificates \
         && apt-get clean \
         && rm -rf /var/lib/apt/lists/* \
-        && find / -type f \( -perm -4000 -o -perm -2000 \) -exec rm -f {} \; \
+        && find / -type f \( -perm -4000 -o -perm -2000 \) -not -path "/proc/*" -not -path "/sys/*" -not -path "/dev/*" -exec rm -f {} \; 2>/dev/null || true \
         && rm -f /usr/bin/chage /usr/bin/chfn /usr/bin/chsh /usr/bin/gpasswd \
         /usr/bin/newgrp /usr/bin/passwd /usr/bin/mount /usr/bin/su \
         /usr/bin/umount /usr/bin/expiry /usr/sbin/unix_chkpwd
