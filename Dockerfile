@@ -47,14 +47,18 @@ LABEL org.opencontainers.image.vendor="Lucas de los Santos" \
 # Set working directory
 WORKDIR /app
 
-# Install runtime dependencies
+# Install runtime dependencies and remove unnecessary setuid/setgid binaries
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
         git \
         tini \
         ca-certificates \
         && apt-get clean \
-        && rm -rf /var/lib/apt/lists/*
+        && rm -rf /var/lib/apt/lists/* \
+        && find / -type f \( -perm -4000 -o -perm -2000 \) -exec rm -f {} \; \
+        && rm -f /usr/bin/chage /usr/bin/chfn /usr/bin/chsh /usr/bin/gpasswd \
+        /usr/bin/newgrp /usr/bin/passwd /usr/bin/mount /usr/bin/su \
+        /usr/bin/umount /usr/bin/expiry /usr/sbin/unix_chkpwd
 
 # Create non-root user
 RUN groupadd -r crsbot && \
