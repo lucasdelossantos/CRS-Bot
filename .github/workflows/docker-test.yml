@@ -206,9 +206,10 @@ jobs:
 
         echo "📝 Creating test environment file..."
         cat > .env << EOL
-        DISCORD_WEBHOOK_URL=https://discord.com/api/webhooks/1234567890/abcdefghijklmnopqrstuvwxyz
+        DISCORD_WEBHOOK_URL=https://discord.com/api/webhooks/test
         PYTHONUNBUFFERED=1
         TEST_ENV=true
+        TEST_ERROR_TYPE=http
         EOL
         chmod 640 .env
         echo "✅ Environment file created"

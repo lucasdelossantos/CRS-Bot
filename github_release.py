@@ -7,9 +7,12 @@ import logging
 import yaml
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
-from datetime import datetime
+from datetime import datetime, UTC
 from typing import Dict, Any, Optional
 import sys
+
+# Initialize logger without handlers
+logger = logging.getLogger(__name__)
 
 def load_config() -> Dict[str, Any]:
     """
@@ -29,42 +32,8 @@ def load_config() -> Dict[str, Any]:
         with open(config_path, 'r') as f:
             return yaml.safe_load(f)
     except Exception as e:
+        print(f"Failed to load configuration from {config_path}: {e}", file=sys.stderr)
         raise RuntimeError(f"Failed to load configuration from {config_path}: {e}")
-
-def configure_logging(config: Dict[str, Any] = None) -> None:
-    """
-    Configure logging based on the provided configuration.
-    
-    Args:
-        config: Configuration dictionary containing logging settings
-    """
-    if not config:
-        config = load_config()
-    
-    log_file = config['logging']['file']
-    if not os.path.isabs(log_file):
-        # If the path is relative, make it absolute relative to /app
-        log_file = os.path.join('/app', log_file)
-    
-    # Create log file if it doesn't exist
-    try:
-        os.makedirs(os.path.dirname(log_file), exist_ok=True)
-        if not os.path.exists(log_file):
-            with open(log_file, 'a') as f:
-                pass
-    except PermissionError:
-        # In test environment, we might not have permission to create files
-        # This is handled by the test configuration
-        pass
-    
-    logging.basicConfig(
-        level=getattr(logging, config['logging']['level']),
-        format=config['logging']['format'],
-        handlers=[
-            logging.FileHandler(log_file, mode='a', encoding='utf-8'),
-            logging.StreamHandler()
-        ]
-    )
 
 def get_discord_webhook_url(config: Dict[str, Any] = None) -> Optional[str]:
     """
@@ -95,11 +64,69 @@ def get_discord_webhook_url(config: Dict[str, Any] = None) -> Optional[str]:
     
     return None
 
+def configure_logging(config: Dict[str, Any] = None) -> None:
+    """
+    Configure logging based on the provided configuration.
+    
+    Args:
+        config: Configuration dictionary containing logging settings
+    """
+    if not config:
+        config = load_config()
+    
+    log_file = config['logging']['file']
+    
+    # Handle paths based on environment
+    if os.getenv('DOCKER_CONTAINER'):
+        # In Docker, use /app as the base directory
+        if not os.path.isabs(log_file):
+            log_file = os.path.join('/app', log_file)
+    else:
+        # Outside Docker, use absolute paths
+        if not os.path.isabs(log_file):
+            log_file = os.path.abspath(log_file)
+    
+    # Create log file if it doesn't exist
+    try:
+        log_dir = os.path.dirname(log_file)
+        if log_dir:
+            os.makedirs(log_dir, exist_ok=True)
+        if not os.path.exists(log_file):
+            with open(log_file, 'a') as f:
+                pass
+    except PermissionError:
+        # In test environment, we might not have permission to create files
+        # This is handled by the test configuration
+        pass
+    
+    # Remove any existing handlers
+    logger.handlers = []
+    
+    # Create handlers
+    file_handler = logging.FileHandler(log_file, mode='a', encoding='utf-8')
+    console_handler = logging.StreamHandler()
+    
+    # Create formatter
+    formatter = logging.Formatter(config['logging']['format'])
+    file_handler.setFormatter(formatter)
+    console_handler.setFormatter(formatter)
+    
+    # Add handlers to logger
+    logger.addHandler(file_handler)
+    logger.addHandler(console_handler)
+    
+    # Set log level
+    logger.setLevel(getattr(logging, config['logging']['level']))
+    
+    # Test logging to ensure file is writable
+    try:
+        logger.info("Logging configured successfully")
+    except Exception as e:
+        print(f"Failed to write to log file: {e}", file=sys.stderr)
+        raise
+
 # Load configuration
 config = load_config()
-
-# Initialize logger without handlers
-logger = logging.getLogger(__name__)
 
 # GitHub configuration
 github_repo = config['github']['repository']
@@ -117,7 +144,7 @@ VERSION_PATTERN = re.compile(config['github']['version_pattern'])
 
 def setup_logging():
     """Configure logging if not already configured."""
-    if not logger.handlers and not os.getenv('TEST_ENV'):
+    if not logger.handlers:
         configure_logging(config)
 
 def create_github_session(config: Dict[str, Any]) -> requests.Session:
@@ -216,7 +243,7 @@ def save_last_version(version: str, config: Dict[str, Any] = None) -> None:
     with open(version_file, "w") as file:
         json.dump({
             "last_version": version,
-            "last_check": datetime.now().isoformat()
+            "last_check": datetime.now(UTC).isoformat()
         }, file)
 
 def send_discord_notification(version: str, config: Optional[Dict] = None) -> bool:
@@ -272,7 +299,7 @@ def send_discord_notification(version: str, config: Optional[Dict] = None) -> bo
         "title": f"New {repo_name} Release!",
         "description": f"A new version **{version}** has been released!",
         "color": config.get('discord', {}).get('notification', {}).get('color', 5814783),
-        "timestamp": datetime.utcnow().isoformat(),
+        "timestamp": datetime.now(UTC).isoformat(),
         "footer": {
             "text": config.get('discord', {}).get('notification', {}).get('footer_text', 'CRS-Bot')
         }

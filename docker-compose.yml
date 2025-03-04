@@ -5,7 +5,7 @@ services:
     build: .
     volumes:
       - .:/app:ro  # Mount current directory read-only for development
-      - data:/app/data  # Persistent volume for data
+      - ./data:/app/data:rw  # Mount data directory with read-write permissions
     environment:
       - DISCORD_WEBHOOK_URL=${DISCORD_WEBHOOK_URL}  # From .env file or environment
       - PYTHONUNBUFFERED=1
