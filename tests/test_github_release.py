@@ -5,6 +5,7 @@ import logging
 from unittest.mock import patch, MagicMock
 import github_release
 import time
+import requests
 
 @pytest.fixture
 def temp_log_dir():
@@ -149,4 +150,57 @@ def test_logging_setup_function(test_config):
         # Verify the message was logged
         with open(log_file, 'r') as f:
             log_content = f.read()
-            assert test_message in log_content, f"Expected '{test_message}' in log content: '{log_content}'" 
+            assert test_message in log_content, f"Expected '{test_message}' in log content: '{log_content}'"
+
+def test_error_handling(test_config):
+    """Test error handling in various functions."""
+    # Test config loading error
+    with patch('builtins.open', side_effect=Exception("Test error")):
+        with pytest.raises(RuntimeError) as exc_info:
+            github_release.load_config()
+        assert "Failed to load configuration" in str(exc_info.value)
+        assert "Test error" in str(exc_info.value)
+
+    # Test webhook URL error
+    with patch.dict('os.environ', {}, clear=True):
+        with patch('github_release.load_config', return_value={'discord': {'notification': {}}}):
+            assert github_release.get_discord_webhook_url() is None
+
+    # Test GitHub API error
+    with patch('requests.get', side_effect=requests.exceptions.RequestException):
+        with patch('github_release.load_config', return_value=test_config):
+            assert github_release.get_latest_release() is None
+
+    # Test version checking error
+    with patch('github_release.get_latest_release', return_value=None):
+        with patch('github_release.load_config', return_value=test_config):
+            assert github_release.check_for_new_release() is None
+
+    # Test file operation errors
+    with patch('builtins.open', side_effect=OSError):
+        with patch('github_release.load_config', return_value=test_config):
+            assert github_release.load_last_version() is None
+
+    # Test Discord notification error
+    with patch('requests.post', side_effect=requests.exceptions.RequestException):
+        with patch('github_release.load_config', return_value=test_config):
+            with pytest.raises(requests.exceptions.RequestException):
+                github_release.send_discord_notification('1.0.0')
+
+def test_logging_error_handling(test_config):
+    """Test error handling in logging configuration."""
+    with patch('github_release.load_config', return_value=test_config):
+        # Test logging configuration error
+        with patch('logging.FileHandler', side_effect=Exception("Test error")):
+            with pytest.raises(Exception) as exc_info:
+                github_release.configure_logging(test_config)
+            assert "Test error" in str(exc_info.value)
+
+def test_file_operation_error_handling(test_config):
+    """Test error handling in file operations."""
+    with patch('github_release.load_config', return_value=test_config):
+        # Test file operation error
+        with patch('builtins.open', side_effect=PermissionError("Test error")):
+            with pytest.raises(PermissionError) as exc_info:
+                github_release.save_last_version("1.0.0", test_config)
+            assert "Test error" in str(exc_info.value) 
