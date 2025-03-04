@@ -30,12 +30,9 @@ FROM builder AS test
 # Install test dependencies
 RUN pip install --no-cache-dir pytest pytest-cov
 # Set test environment variables
-ENV TEST_ENV=true \
-    COVERAGE_FILE=/build/.coverage
-# Create coverage file with correct permissions
-RUN touch /build/.coverage && chmod 644 /build/.coverage
+ENV TEST_ENV=true
 # Run tests with coverage
-RUN python -m pytest tests/ --cov=. --cov-report=term-missing
+RUN python -m pytest tests/ --cov=. --cov-report=term-missing --cov-config=/build/.coveragerc
 
 # Final stage
 FROM python:3.11-slim
