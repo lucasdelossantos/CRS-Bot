@@ -80,12 +80,16 @@ ENV PYTHONUNBUFFERED=1 \
     DOCKER_CONTAINER=1 \
     PYTHON_HASHSEED=random
 
-# Create volumes for persistent storage
-VOLUME ["/app/data", "/app/logs"]
-
-# Create data and log directories
-RUN mkdir -p /app/data /app/logs && \
-    chown -R crsbot:crsbot /app
+# Create necessary directories with correct permissions
+RUN mkdir -p /app/data && \
+    chown root:crsbot /app/data && \
+    chmod 750 /app/data && \
+    mkdir -p /app/logs && \
+    chown crsbot:crsbot /app/logs && \
+    chmod 755 /app/logs && \
+    mkdir -p /app/version && \
+    chown crsbot:crsbot /app/version && \
+    chmod 755 /app/version
 
 # Add health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
