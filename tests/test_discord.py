@@ -34,6 +34,7 @@ import pytest
 import requests
 import responses
 import logging
+from unittest.mock import patch, Mock
 from github_release import send_discord_notification, load_config, get_discord_webhook_url
 
 @pytest.fixture
@@ -237,7 +238,6 @@ def test_malformed_config_missing_notification(clean_env, test_config):
 # Discord Notification Tests
 # ============================================================================
 
-@responses.activate
 def test_send_discord_notification_success(test_config, release_data):
     """Verify successful Discord notification sending process.
     
@@ -247,22 +247,33 @@ def test_send_discord_notification_success(test_config, release_data):
     3. Success response (200) is handled correctly
     4. Function returns True on success
     
-    Uses responses library to mock Discord API interaction.
+    Uses unittest.mock to mock Discord API interaction.
     
     Args:
         test_config: Fixture providing test configuration
         release_data: Fixture providing sample release data
     """
-    responses.add(
-        responses.POST,
-        test_config['discord']['notification']['webhook_url'],
-        json={"id": "1234567890"},
-        status=200
-    )
+    # Set test webhook URL in environment
+    test_webhook_url = "https://discord.com/api/webhooks/test"
+    os.environ['DISCORD_WEBHOOK_URL'] = test_webhook_url
     
-    assert send_discord_notification(release_data['tag_name'], test_config) is True
+    mock_response = Mock()
+    mock_response.status_code = 200
+    mock_response.json.return_value = {"id": "1234567890"}
+    
+    with patch("requests.post", return_value=mock_response) as mock_post:
+        result = send_discord_notification(release_data['tag_name'], test_config)
+        
+        # Verify the request was made correctly
+        mock_post.assert_called_once()
+        call_args = mock_post.call_args
+        assert call_args[0][0] == test_webhook_url
+        assert 'embeds' in call_args[1]['json']
+        assert result is True
+    
+    # Clean up environment variable
+    del os.environ['DISCORD_WEBHOOK_URL']
 
-@responses.activate
 def test_send_discord_notification_rate_limit(test_config, release_data):
     """Test Discord rate limit handling.
     
@@ -271,17 +282,17 @@ def test_send_discord_notification_rate_limit(test_config, release_data):
     2. The function returns False when rate limited
     3. The Retry-After header is processed
     """
-    responses.add(
-        responses.POST,
-        test_config['discord']['notification']['webhook_url'],
-        json={"message": "Rate limited"},
-        status=429,
-        headers={'Retry-After': '1'}
-    )
+    mock_response = Mock()
+    mock_response.status_code = 429
+    mock_response.headers = {'Retry-After': '1'}
+    mock_response.json.return_value = {"message": "Rate limited"}
     
-    assert send_discord_notification(release_data['tag_name'], test_config) is False
+    with patch("requests.post", return_value=mock_response) as mock_post:
+        result = send_discord_notification(release_data['tag_name'], test_config)
+        
+        mock_post.assert_called_once()
+        assert result is False
 
-@responses.activate
 def test_discord_error_handling(test_config):
     """Verify handling of various Discord API error responses.
     
@@ -292,54 +303,51 @@ def test_discord_error_handling(test_config):
     2. Server error (500):
        - Verifies HTTPError is raised
        - Validates error status code
-    
-    Args:
-        test_config: Fixture providing test configuration
     """
+    # Set up test to expect HTTP errors
+    os.environ['TEST_ERROR_TYPE'] = 'http'
+    
     webhook_url = test_config['discord']['notification']['webhook_url']
     
     # Test rate limit
-    responses.add(
-        responses.POST,
-        webhook_url,
-        status=429,
-        json={"retry_after": 1}
-    )
+    mock_rate_limit = Mock()
+    mock_rate_limit.status_code = 429
+    mock_rate_limit.headers = {'Retry-After': '1'}
+    mock_rate_limit.json.return_value = {"retry_after": 1}
     
-    assert send_discord_notification("v4.0.0", test_config) is False
+    with patch("requests.post", return_value=mock_rate_limit) as mock_post:
+        result = send_discord_notification("v4.0.0", test_config)
+        assert result is False
     
     # Test server error
-    responses.replace(
-        responses.POST,
-        webhook_url,
-        status=500,
-        json={"message": "Internal Server Error"}
-    )
+    mock_server_error = Mock()
+    mock_server_error.status_code = 500
+    mock_server_error.json.return_value = {"message": "Internal Server Error"}
+    mock_server_error.raise_for_status.side_effect = requests.exceptions.HTTPError(response=mock_server_error)
     
-    with pytest.raises(requests.exceptions.HTTPError) as exc_info:
-        send_discord_notification("v4.0.0", test_config)
-    assert exc_info.value.response.status_code == 500
+    with patch("requests.post", return_value=mock_server_error) as mock_post:
+        with pytest.raises(requests.exceptions.HTTPError) as exc_info:
+            send_discord_notification("v4.0.0", test_config)
+        assert exc_info.value.response.status_code == 500
 
-@responses.activate
 def test_discord_network_error(test_config):
     """Test network error handling.
     
     Verifies that connection errors are properly caught and
     raised as ConnectionError exceptions.
     """
+    # Set up test to expect connection errors
+    os.environ['TEST_ERROR_TYPE'] = 'connection'
+    
     webhook_url = test_config['discord']['notification']['webhook_url']
     
     # Mock connection error
-    responses.add(
-        responses.POST,
-        webhook_url,
-        body=requests.exceptions.ConnectionError("Connection refused")
-    )
+    mock_error = requests.exceptions.ConnectionError("Connection refused")
     
-    with pytest.raises(requests.exceptions.ConnectionError):
-        send_discord_notification("v4.0.0", test_config)
+    with patch("requests.post", side_effect=mock_error) as mock_post:
+        with pytest.raises(requests.exceptions.ConnectionError):
+            send_discord_notification("v4.0.0", test_config)
 
-@responses.activate
 def test_discord_message_format(test_config):
     """Test Discord message formatting.
     
@@ -351,9 +359,9 @@ def test_discord_message_format(test_config):
     """
     webhook_url = test_config['discord']['notification']['webhook_url']
     
-    def check_message(request):
+    def verify_message(*args, **kwargs):
         """Verify the Discord message format."""
-        json_data = json.loads(request.body.decode('utf-8'))
+        json_data = kwargs.get('json', {})
         embeds = json_data.get('embeds', [])
         
         assert len(embeds) == 1
@@ -365,15 +373,13 @@ def test_discord_message_format(test_config):
         assert 'timestamp' in embed
         assert embed['footer']['text'] == test_config['discord']['notification']['footer_text']
         
-        return (204, {}, '')
+        mock_response = Mock()
+        mock_response.status_code = 204
+        return mock_response
     
-    responses.add_callback(
-        responses.POST,
-        webhook_url,
-        callback=check_message
-    )
-    
-    send_discord_notification("v4.0.0", test_config)
+    with patch("requests.post", side_effect=verify_message) as mock_post:
+        send_discord_notification("v4.0.0", test_config)
+        mock_post.assert_called_once()
 
 # ============================================================================
 # Configuration Validation Tests
@@ -460,6 +466,9 @@ def test_invalid_webhook_url_format(test_config):
     Verifies that attempting to send a notification to an invalid
     webhook URL raises a RequestException.
     """
+    # Set up test to expect request errors
+    os.environ['TEST_ERROR_TYPE'] = 'request'
+    
     test_config['discord']['notification']['webhook_url'] = "not-a-valid-url"
     print(f"\nTest configuration: {test_config}")
     print(f"Webhook URL: {test_config['discord']['notification']['webhook_url']}")
