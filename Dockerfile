@@ -77,7 +77,8 @@ RUN pip install --no-cache-dir -r requirements.txt && \
 # Set environment variables
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
-    DOCKER_CONTAINER=1
+    DOCKER_CONTAINER=1 \
+    PYTHON_HASHSEED=random
 
 # Create volumes for persistent storage
 VOLUME ["/app/data", "/app/logs"]

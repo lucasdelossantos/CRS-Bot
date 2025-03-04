@@ -180,6 +180,7 @@ jobs:
           -v ${{ github.workspace }}/tests/coverage:/coverage:rw \
           -v ${{ github.workspace }}/tests/pytest_cache:/app/.pytest_cache:rw \
           -e COVERAGE_FILE=/coverage/.coverage \
+          -e DOCKER_CONTAINER=true \
           --user crsbot \
           crs-bot:test \
           pytest tests/ --cov=. --cov-report=xml:/coverage/coverage.xml -v
