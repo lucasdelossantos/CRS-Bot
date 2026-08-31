@@ -20,7 +20,7 @@ storage:
 logging:
   level: "INFO"
   format: "%(asctime)s - %(levelname)s - %(message)s"
-  file: "data/github_release_bot.log"
+  file: "logs/github_release_bot.log"
 
 # Discord Configuration
 discord:

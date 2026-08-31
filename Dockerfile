@@ -1,5 +1,5 @@
 # Build stage
-FROM python:3.9-slim AS builder
+FROM python:3.11-slim AS builder
 
 # Set working directory
 WORKDIR /build
@@ -14,7 +14,7 @@ RUN apt-get update && \
 COPY requirements.txt .
 
 # Install dependencies
-RUN pip install --no-cache-dir --user -r requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy application files
 COPY github_release.py .
@@ -23,92 +23,79 @@ COPY setup.py .
 COPY tests/ tests/
 
 # Install package
-RUN pip install --no-cache-dir --user -e .
+RUN pip install --no-cache-dir -e .
+
+# Test stage
+FROM builder AS test
+# Install test dependencies
+RUN pip install --no-cache-dir pytest pytest-cov
+# Set test environment variables
+ENV TEST_ENV=true
+# Run tests with coverage
+RUN python -m pytest tests/ --cov=. --cov-report=term-missing --cov-config=/build/.coveragerc
 
 # Final stage
-FROM python:3.9-slim
+FROM python:3.11-slim
 
 # Add security-related labels
 LABEL org.opencontainers.image.vendor="Lucas de los Santos" \
       org.opencontainers.image.title="CRS-Bot" \
       org.opencontainers.image.description="GitHub Release Bot for Core Rule Set" \
       org.opencontainers.image.licenses="MIT" \
-      org.opencontainers.image.source="https://github.com/lucasdelossantos/CRS-Bot" \
-      org.opencontainers.image.security.policy="https://github.com/lucasdelossantos/CRS-Bot/security/policy"
+      org.opencontainers.image.source="https://github.com/lucasdelossantos/CRS-Bot"
 
 # Set working directory
 WORKDIR /app
 
-# Install runtime dependencies and security tools
+# Install runtime dependencies and remove unnecessary setuid/setgid binaries
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
         git \
         tini \
         ca-certificates \
-        acl \
-        # Add security packages
-        apparmor \
-        libcap2-bin \
-        # Clean up
         && apt-get clean \
         && rm -rf /var/lib/apt/lists/* \
-        # Set restrictive umask
-        && echo "umask 0027" >> /etc/profile
+        && find / -type f \( -perm -4000 -o -perm -2000 \) -not -path "/proc/*" -not -path "/sys/*" -not -path "/dev/*" -exec rm -f {} \; 2>/dev/null || true \
+        && rm -f /usr/bin/chage /usr/bin/chfn /usr/bin/chsh /usr/bin/gpasswd \
+        /usr/bin/newgrp /usr/bin/passwd /usr/bin/mount /usr/bin/su \
+        /usr/bin/umount /usr/bin/expiry /usr/sbin/unix_chkpwd
 
-# Create non-root user with specific UID/GID
-RUN groupadd -r -g 10001 crsbot && \
-    useradd -r -g crsbot -u 10001 \
+# Create non-root user
+RUN groupadd -r crsbot && \
+    useradd -r -g crsbot \
         -s /sbin/nologin \
         -d /app \
-        --no-log-init \
         crsbot
 
-# Copy runtime files with root ownership and restrictive permissions
-COPY --chmod=554 github_release.py .
-COPY --chmod=440 config.yaml .
-COPY --chmod=554 setup.py .
-COPY --chmod=440 requirements.txt .
+# Copy runtime files
+COPY github_release.py .
+COPY config.yaml .
+COPY setup.py .
+COPY requirements.txt .
 
 # Install dependencies and package
 RUN pip install --no-cache-dir -r requirements.txt && \
     pip install --no-cache-dir -e . && \
-    # Clean up pip cache
-    rm -rf /root/.cache/pip/* && \
-    # Set proper group for installed packages
-    chgrp -R crsbot /usr/local/lib/python3.9/site-packages && \
-    chmod -R g+r /usr/local/lib/python3.9/site-packages
+    rm -rf /root/.cache/pip/*
 
-# Set security-related environment variables
+# Set environment variables
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
-    PIP_NO_CACHE_DIR=1 \
-    # Add security-related env vars
-    PYTHON_HASHSEED=random \
-    # Prevent core dumps
-    PYTHON_DONT_WRITE_BYTECODE=1 \
-    # Set restrictive umask
-    UMASK=0027
+    DOCKER_CONTAINER=1 \
+    PYTHON_HASHSEED=random
 
-# Create volume for persistent storage
-VOLUME ["/app/data"]
-
-# Create data directory and set permissions
+# Create necessary directories with correct permissions
 RUN mkdir -p /app/data && \
-    # Set proper ownership and permissions
-    chown root:crsbot /app && \
     chown root:crsbot /app/data && \
-    # Set restrictive permissions
-    chmod 550 /app && \
     chmod 750 /app/data && \
-    # Add additional capability restrictions
-    setcap cap_net_bind_service=+ep /usr/local/bin/python3.9 && \
-    # Remove ALL setuid/setgid bits from the entire filesystem
-    echo "Removing setuid/setgid bits from all files..." && \
-    find / -path /proc -prune -o -perm /6000 -type f -exec chmod a-s {} + 2>/dev/null || true && \
-    echo "Verifying no setuid/setgid files remain..." && \
-    find / -path /proc -prune -o -perm /6000 -type f -ls 2>/dev/null || true
+    mkdir -p /app/logs && \
+    chown crsbot:crsbot /app/logs && \
+    chmod 755 /app/logs && \
+    mkdir -p /app/version && \
+    chown crsbot:crsbot /app/version && \
+    chmod 755 /app/version
 
-# Add health check with timeout and retries
+# Add health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
     CMD python -c "import requests; requests.get('https://api.github.com/zen', timeout=5)" || exit 1
 
@@ -119,7 +106,4 @@ USER crsbot
 ENTRYPOINT ["/usr/bin/tini", "--"]
 
 # Set default command
-CMD ["python", "github_release.py"]
-
-# Add security options
-STOPSIGNAL SIGTERM 
+CMD ["python", "github_release.py"] 

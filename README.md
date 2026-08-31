@@ -127,6 +127,23 @@ The bot can be run as a Docker container, which provides several benefits:
 - Easy deployment and updates
 - Isolated dependencies
 - Built-in restart policies
+- Multi-stage build with automated testing
+
+#### Docker Build Stages
+
+The Dockerfile includes three stages:
+1. **Builder Stage**: Installs dependencies and builds the package
+2. **Test Stage**: Runs unit tests with coverage reporting
+3. **Final Stage**: Creates the production image
+
+To build and test:
+```bash
+# Build and run tests
+docker build --target test -t crs-bot-test .
+
+# Build production image
+docker build -t crs-bot .
+```
 
 #### Docker Compose (Recommended)
 1. Clone the repository and navigate to it
@@ -149,19 +166,40 @@ The bot can be run as a Docker container, which provides several benefits:
    docker run -d \
      -e DISCORD_WEBHOOK_URL=your-discord-webhook-url \
      -v $(pwd)/data:/app/data \
+     -v $(pwd)/logs:/app/logs \
      --name crs-bot \
      crs-bot
    ```
 
-#### Docker Volume
-The container uses a Docker volume to persist the `last_version.json` file:
-- In Docker Compose: Named volume `data`
-- In manual Docker: Bind mount to `./data`
+#### Docker Volumes
+The container uses two Docker volumes for persistent storage:
+- `/app/data`: Stores the `last_version.json` file
+- `/app/logs`: Stores application logs
+
+When running manually, these are typically mounted as:
+- `./data:/app/data`
+- `./logs:/app/logs`
 
 #### Environment Variables
 When running with Docker, configure the bot using environment variables:
 - `DISCORD_WEBHOOK_URL`: Your Discord webhook URL (required)
+- `DOCKER_CONTAINER`: Set to 1 (automatically set in container)
 - Additional variables can be added in the `.env` file or docker-compose.yml
+
+#### Health Check
+The container includes a health check that monitors the application's ability to connect to GitHub's API:
+```bash
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+    CMD python -c "import requests; requests.get('https://api.github.com/zen', timeout=5)" || exit 1
+```
+
+#### Security Features
+The container runs with several security best practices:
+- Non-root user (`crsbot`)
+- Minimal base image (python:3.11-slim)
+- No unnecessary packages
+- Read-only filesystem where possible
+- Proper file permissions
 
 ### Installation
 
@@ -283,3 +321,49 @@ Contributions are welcome! Please open an issue or submit a pull request for any
 ## Contact
 
 For any questions or inquiries, please contact Lucas de los Santos.
+
+### Testing
+
+The project includes comprehensive tests that can be run in multiple ways:
+
+#### Running Tests Locally
+```bash
+# Install test dependencies
+pip install pytest pytest-cov
+
+# Run tests with coverage
+python -m pytest tests/ --cov=. --cov-report=term-missing
+```
+
+#### Running Tests in Docker
+The Dockerfile includes a dedicated test stage that runs tests during the build process:
+```bash
+# Build and run tests
+docker build --target test -t crs-bot-test .
+```
+
+This will:
+1. Build the application
+2. Install test dependencies
+3. Run all tests with coverage reporting
+4. Fail the build if any tests fail
+
+#### Test Environment
+Tests run in a controlled environment with:
+- Mocked Discord webhook responses
+- Test-specific configuration
+- Isolated file system
+- Coverage reporting
+
+#### Test Coverage
+The test suite includes:
+- Unit tests for core functionality
+- Integration tests for GitHub API interaction
+- Mock tests for Discord notifications
+- Configuration validation tests
+- Logging setup tests
+
+Current coverage can be viewed in the test output or by running:
+```bash
+python -m pytest tests/ --cov=. --cov-report=html
+```
